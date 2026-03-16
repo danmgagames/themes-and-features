@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude\\\\commands\" && mv \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude/catchup.md\" \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude/cleanup.md\" \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude/record-session.md\" \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude/recover.md\" \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude/review.md\" \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude/update-plan.md\" \"C:\\\\Users\\\\dnugent\\\\Documents\\\\Code\\\\themes-and-features\\\\.claude\\\\commands/\")",
+      "Bash(cd:*)"
+    ]
+  }
+}

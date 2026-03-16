@@ -1,0 +1,12 @@
+Recover from a broken or off-track session
+- Identify what went wrong: broken code, wrong approach, context exhaustion, other
+- Check git log for last clean commit
+- If code is broken: revert to last clean commit with `git checkout .`
+- Log what happened in dev/ref/issues-resolved.md (what went wrong and why)
+- Update projectlog.md with an "Aborted" session entry explaining:
+  - What was attempted
+  - Why it failed
+  - What the correct approach should be
+- Set clear next action in projectlog.md so the next session doesn't repeat the mistake
+- Git commit the updated docs (not the broken code)
+- Confirm recovery status to user

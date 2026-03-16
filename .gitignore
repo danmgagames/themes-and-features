@@ -4,5 +4,6 @@ data/raw_extracts/
 data/classified/
 data/classifier_log.jsonl
 output/
+.env
 __pycache__/
 *.pyc

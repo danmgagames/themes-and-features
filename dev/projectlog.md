@@ -10,6 +10,8 @@ output an enriched CSV for casino site SEO.
 |---------|------------|------------|
 | Planning (Claude.ai) | ~18,000 | 18,000 |
 | Session 1 — Extractor (Feature) | ~35,000 | 53,000 |
+| Session 2a — Classifier scaffolding + test | ~80,000 | 133,000 |
+| Session 2b — Full classification run (Feature) | ~530,000 | 663,000 |
 
 ---
 
@@ -39,18 +41,11 @@ output an enriched CSV for casino site SEO.
 
 **Key findings recorded in:** `dev/ref/architecture.md`, `dev/ref/taxonomy-decisions.md`
 
-**Outstanding before Session 1:**
-- [ ] User to confirm PPTX folder Windows path format ✓ (confirmed: Windows path)
-- [ ] User to confirm whether deactivated games should be included (default: skip)
-- [ ] Obtain ANTHROPIC_API_KEY for Session 2 API calls
-
 ---
 
 ### Session 1 — Phase 1: Extractor (Claude Code)
 **Date:** 2026-03-16
 **Status:** Complete
-**Category:** Feature
-**Context limits hit:** No
 
 **What was done:**
 - Built `agents/extractor.py` (246 lines) and `main.py` (92 lines)
@@ -65,30 +60,76 @@ output an enriched CSV for casino site SEO.
 
 **Key findings:** recorded in `dev/ref/stage1-summary.md`
 
-**Outstanding for Session 2:**
-- [ ] `market_names.xlsx` not in repo — market lookup skipped. Obtain file or skip market resolution.
-- [ ] Obtain ANTHROPIC_API_KEY for classifier API calls
-- [ ] 68 non-Comercial PPTXs lack structured category slides — classifier must work from raw text
-- [ ] 10 games have no PPTX at all — flag for manual review
+---
+
+### Session 2a — Phase 2 scaffolding + architecture pivot (Claude Code)
+**Date:** 2026-03-16
+**Status:** Complete — scaffolding done, architecture updated, ready for classification run
+
+**What was done:**
+- Built `agents/theme_classifier.py`, `agents/feature_classifier.py`, `agents/localisation_resolver.py`
+- Wired `classify` subcommand into `main.py` (with --dry-run, --include-deactivated flags)
+- Attempted API dry-run — API key had no model access (404 on all models)
+- **Architecture pivot:** switched from Claude API calls to Claude Code sub-agent approach
+  - Each sub-agent processes a batch of 10 games using Max plan tokens
+  - 13 sub-agents total, run 3–4 in parallel
+  - No API key or credits required
+- Ran manual test classification on 5 Megaways games (Option A: classify in-conversation)
+- Test results validated: themes/features/confidence scores look correct
+- `config/market_names.xlsx` now in repo — localisation resolver tested, found 341 active families
+- Celebrity IP detection working: found Charlie Riina, Lisa Mancini, Joshua Guvi, Ron Josol, Taya Valkyrie
+- Deleted `.env` file (no longer needed — no API calls)
+- Updated `SESSION_2_PROMPT.md` to reflect sub-agent approach
+- Updated `dev/ref/architecture.md` with new Phase 2 design
+
+**Unknown features found in test batch:**
+- Risk/Gamble Free Spins
+- Roulette Free Spins Selection
+- MultiRatio/MultiVolatility
+
+**Files created/modified:**
+- `agents/theme_classifier.py` (new — reference/prompts, not used directly)
+- `agents/feature_classifier.py` (new — reference/prompts, not used directly)
+- `agents/localisation_resolver.py` (new — deterministic lookup, used directly)
+- `main.py` (updated — classify subcommand added)
+- `data/classified/*.json` (5 test files)
+- `dev/SessionPrompts/SESSION_2_PROMPT.md` (updated for sub-agent approach)
+- `dev/ref/architecture.md` (updated)
 
 ---
 
-### Session 2 — Phase 2: Classifiers (Claude Code)
-**Status:** Not started — blocked on Session 1
-**Plan:**
-- Paste `SESSION_2_PROMPT.md` into Claude Code
-- Build theme, feature, localisation subagents
-- Run `--dry-run` on 5 games, validate Spanish→English mapping
-- Validate: "Robos"→Heist/Crime, "Megaways"→Megaways, "Compra Free Spins"→Buy Feature
-- Full classify run (200–500 games, ~10 concurrent API calls)
-- Record unknown_features found in `dev/ref/stage2-summary.md`
+### Session 2b — Phase 2: Full classification run (Claude Code)
+**Date:** 2026-03-16
+**Status:** Complete
+
+**What was done:**
+- Classified all 128 games via 13 Claude Code sub-agents (batches of 10)
+- Ran sub-agents in 3 waves: wave 1 (4 parallel), wave 2 (4 parallel), wave 3 (5 parallel)
+- Ran localisation resolver in main context — merged market data into all classified JSONs
+- Validated results: 128 classified, 89 matched to market DB, 39 unmatched
+
+**Classification stats:**
+- 89/128 matched to market_names.xlsx families, 39 unmatched (will be flagged)
+- 23 games with theme confidence < 0.75 (mostly design-only PPTXs)
+- 57 games with feature confidence < 0.75 (Slots3 design PPTXs lack mechanic detail)
+- 7 games with no PPTX found
+- 34 games with unknown features — 51 unique unknown mechanics captured
+- 5 celebrity IPs from Ca/Se variants (Charlie Riina, Lisa Mancini, Joshua Guvi, Ron Josol, Taya Valkyrie)
+- Many additional celebrities detected from game names (Chiquito de la Calzada, Samantha Fox, Mario Vaquerizo, etc.)
+
+**Token breakdown:** ~490k sub-agents + ~40k main context = ~530k (Feature)
+
+**Files modified:**
+- `data/classified/*.json` (128 files, gitignored)
+
+**Key findings:** recorded in `dev/ref/stage2-summary.md`
 
 ---
 
 ### Session 3 — Phase 3: Output + Review (Claude Code)
-**Status:** Not started — blocked on Session 2
+**Status:** Not started — next session
 **Plan:**
-- Paste `SESSION_3_PROMPT.md` into Claude Code
+- Follow `SESSION_3_PROMPT.md`
 - Build consolidator, CSV output, review workflow, taxonomy expansion report
 - Generate `output/games_enriched.csv` and `output/review_flagged.csv`
 - Generate `output/unknown_features_report.csv`
@@ -98,6 +139,6 @@ output an enriched CSV for casino site SEO.
 ---
 
 ## Current status
-**Phase:** Phase 1 complete — extraction done, ready for Session 2 (classifiers)
-**Blocker:** Need ANTHROPIC_API_KEY; market_names.xlsx missing (optional)
-**Next action:** Run SESSION_2_PROMPT — build theme/feature classifiers, dry-run on 5 games
+**Phase:** Phase 2 complete — all 128 games classified and localisation-resolved
+**Blocker:** None
+**Next action:** Session 3 — first validate/QA the classification results thoroughly, then read SESSION_3_PROMPT and proceed to Phase 3 (consolidator, CSVs, unknown features report)
