@@ -1,0 +1,313 @@
+{
+  "_notes": {
+    "themes": "Market-standard SEO theme tags. Multiple tags per game are expected and encouraged. Derived from Pragmatic Play competitor data + MGA-specific additions. Tags are in English for SEO purposes. The classifier should assign ALL applicable tags, not just the most prominent one.",
+    "features": "MGA-specific mechanic/feature tags. Derived from PPTX extraction pass — this list will grow during Session 2. The classifier maps Spanish internal terms to these standard English labels.",
+    "celebrity_rule": "For celebrity-attached games: assign 'Celebrities' tag PLUS the celebrity's own name as a tag (e.g. 'Abigail Ratchford') PLUS any relevant genre/sport tag (e.g. 'Sports', 'Racing'). This maximises SEO surface area.",
+    "confidence_threshold": 0.75,
+    "version": "1.0 — seed taxonomy, will expand after PPTX extraction pass"
+  },
+
+  "themes": {
+
+    "Nature & Animals": [
+      "Animals",
+      "Birds",
+      "Cats",
+      "Dogs",
+      "Horses",
+      "Lions",
+      "Tigers",
+      "Wolves",
+      "Buffalo",
+      "Gorillas",
+      "Pandas",
+      "Rhinos",
+      "Frogs",
+      "Butterflies",
+      "Fishing",
+      "Sea",
+      "Water",
+      "Beach",
+      "Tropical",
+      "Jungle",
+      "Safari",
+      "Forest",
+      "Underwater"
+    ],
+
+    "Fantasy & Mythology": [
+      "Fantasy",
+      "Magic",
+      "Dragons",
+      "Gods",
+      "Myths",
+      "Wizards",
+      "Fairies",
+      "Unicorns",
+      "Monsters",
+      "Demons",
+      "Angels"
+    ],
+
+    "Sci-Fi & Futuristic": [
+      "Sci-Fi",
+      "Universe",
+      "Space",
+      "Aliens",
+      "Robots",
+      "Steampunk",
+      "Cyberpunk"
+    ],
+
+    "Ancient Civilisations": [
+      "Egyptian",
+      "Greek",
+      "Roman",
+      "Aztec",
+      "Mayan",
+      "Viking",
+      "Medieval",
+      "Celtic",
+      "Historic",
+      "Pre-Historic",
+      "Asian",
+      "Chinese",
+      "Japanese"
+    ],
+
+    "Wealth & Fortune": [
+      "Gold",
+      "Gems",
+      "Treasure",
+      "Fortune",
+      "Irish Lucky",
+      "Leprechauns",
+      "Coins",
+      "Cash",
+      "Money",
+      "Crystals",
+      "Diamonds",
+      "Jewels"
+    ],
+
+    "Adventure & Action": [
+      "Adventure",
+      "Heist",
+      "Crime",
+      "Pirates",
+      "Western",
+      "Wild West",
+      "Cowboys",
+      "War",
+      "Gladiators",
+      "Ninja",
+      "Spies",
+      "Horror",
+      "Zombies",
+      "Halloween",
+      "Vampires"
+    ],
+
+    "Movies & TV": [
+      "Movies & TV"
+    ],
+
+    "Sport": [
+      "Sport",
+      "Football",
+      "Racing",
+      "Boxing",
+      "Fishing",
+      "Horse Racing",
+      "Extreme Sports"
+    ],
+
+    "Celebrities": [
+      "Celebrities"
+    ],
+
+    "Food & Sweets": [
+      "Fruits",
+      "Sweets",
+      "Candy",
+      "Food",
+      "Cake",
+      "Chocolate"
+    ],
+
+    "Culture & Lifestyle": [
+      "Latin",
+      "Mexican",
+      "Fiesta",
+      "Dance",
+      "Music",
+      "Party",
+      "Glamour",
+      "Fashion",
+      "Vegas",
+      "Casino",
+      "Zodiac",
+      "Fortune Telling",
+      "Circus",
+      "Carnival"
+    ],
+
+    "Seasonal & Holiday": [
+      "Christmas",
+      "Halloween",
+      "Easter",
+      "Valentine",
+      "Summer",
+      "Winter",
+      "Seasonal",
+      "St Patrick's Day",
+      "Oktoberfest"
+    ],
+
+    "Classic & Retro": [
+      "Classic",
+      "Retro",
+      "Fruits",
+      "7s",
+      "Joker",
+      "Dice",
+      "Bar Symbols",
+      "Arcade"
+    ],
+
+    "Anime & Cartoon": [
+      "Anime",
+      "Cartoon",
+      "Comic"
+    ]
+  },
+
+  "features": {
+
+    "_notes": "Seed list only. Will be expanded significantly after PPTX extraction pass in Session 2. Spanish internal terms that map to these are documented in the 'spanish_aliases' block below.",
+
+    "Free Spins & Bonus Rounds": [
+      "Free Spins",
+      "Progressive Free Spins",
+      "Bonus Game",
+      "Bonus Round",
+      "Instant Bonus"
+    ],
+
+    "Buy Feature": [
+      "Buy Feature",
+      "Buy Free Spins",
+      "Bonus Buy"
+    ],
+
+    "Wilds": [
+      "Wild",
+      "Expanding Wild",
+      "Sticky Wild",
+      "Random Wild",
+      "Roaming Wild",
+      "Stacked Wild",
+      "Raining Wilds",
+      "Colossal Wild",
+      "Super Wild"
+    ],
+
+    "Multipliers": [
+      "Multiplier",
+      "Win Multiplier",
+      "Progressive Multiplier",
+      "Wild Multiplier",
+      "Increasing Multiplier"
+    ],
+
+    "Grid & Pay Mechanics": [
+      "Megaways",
+      "Cluster Pays",
+      "Ways to Win",
+      "Scatter Pays",
+      "Tumbling Reels",
+      "Cascading Reels",
+      "Multiple Grids",
+      "Colossal Symbols",
+      "Stacked Symbols",
+      "Mystery Symbols"
+    ],
+
+    "Respin & Hold": [
+      "Respin",
+      "Hold & Spin",
+      "Money Respin",
+      "Lock & Spin"
+    ],
+
+    "Money & Collection": [
+      "Money Collection",
+      "Coin Collection",
+      "Jackpot"
+    ],
+
+    "Jackpot": [
+      "Jackpot",
+      "Progressive Jackpot",
+      "Mini Jackpot",
+      "Mega Jackpot"
+    ]
+  },
+
+  "spanish_aliases": {
+    "_notes": "Maps Spanish internal terms found in MGA PPTXs to their standard English feature/theme tags. Extend this as the extraction pass reveals new terms.",
+
+    "themes": {
+      "Robos": ["Heist", "Crime", "Adventure"],
+      "Aventuras": ["Adventure"],
+      "Películas y Televisión": ["Movies & TV"],
+      "Estilo clásico": ["Classic"],
+      "Naturaleza": ["Animals", "Nature"],
+      "Animales": ["Animals"],
+      "Magia": ["Magic", "Fantasy"],
+      "Fantasía": ["Fantasy"],
+      "Deporte": ["Sport"],
+      "Navidad": ["Christmas", "Seasonal"],
+      "Verano": ["Summer", "Seasonal"],
+      "Frutas": ["Fruits", "Classic"],
+      "Egipto": ["Egyptian", "Ancient Civilisations"],
+      "Grecia": ["Greek", "Ancient Civilisations"],
+      "Vikingos": ["Viking", "Ancient Civilisations"],
+      "Terror": ["Horror"],
+      "Piratas": ["Pirates", "Adventure"],
+      "Lejano Oeste": ["Western", "Wild West"],
+      "Vaqueros": ["Cowboys", "Western"],
+      "Espacio": ["Space", "Sci-Fi"],
+      "Joker": ["Joker", "Classic"],
+      "Circo": ["Circus", "Culture & Lifestyle"],
+      "Carnaval": ["Carnival", "Culture & Lifestyle"],
+      "Famosos": ["Celebrities"],
+      "Celebridades": ["Celebrities"]
+    },
+
+    "features": {
+      "Compra Free Spins": "Buy Free Spins",
+      "Compra de Bonus": "Bonus Buy",
+      "Giros Gratis": "Free Spins",
+      "Wilds Expansivos": "Expanding Wild",
+      "Wilds Pegajosos": "Sticky Wild",
+      "Wild Expansivo": "Expanding Wild",
+      "Multiplicador": "Multiplier",
+      "Multiplicadores": "Multiplier",
+      "Megaways": "Megaways",
+      "Respin": "Respin",
+      "Retrigger": "Progressive Free Spins",
+      "Sorteo Free Spins": "Progressive Free Spins",
+      "Bote": "Jackpot",
+      "Bote Progresivo": "Progressive Jackpot",
+      "Jackpot Progresivo": "Progressive Jackpot",
+      "Líneas de pago": "Ways to Win",
+      "Cascada": "Tumbling Reels",
+      "Símbolos Colosales": "Colossal Symbols",
+      "Símbolos Misteriosos": "Mystery Symbols",
+      "Colección de monedas": "Coin Collection",
+      "Hold & Spin": "Hold & Spin",
+      "Bonus Instantáneo": "Instant Bonus"
+    }
+  }
+}
