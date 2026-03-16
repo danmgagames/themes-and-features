@@ -5,7 +5,9 @@ Usage:
     python main.py extract --input POWERPOINTS [--output data/raw_extracts]
     python main.py classify [--dry-run]
     python main.py consolidate
-    python main.py merge-review
+    python main.py merge-review --review output/review_flagged.csv
+    python main.py stats
+    python main.py run-all --input POWERPOINTS [--dry-run]
 """
 
 import argparse
@@ -231,6 +233,177 @@ def cmd_classify(args):
     print(f"  Log appended to:    {log_path}")
 
 
+def cmd_consolidate(args):
+    """Phase 3: Consolidate classified JSONs into CSVs."""
+    from agents.consolidator import consolidate
+
+    classified_dir = Path(args.classified).resolve() if args.classified else PROJECT_ROOT / 'data' / 'classified'
+    output_dir = Path(args.output).resolve() if args.output else PROJECT_ROOT / 'output'
+
+    if not classified_dir.exists():
+        print(f"Error: Classified folder not found: {classified_dir}")
+        sys.exit(1)
+
+    print(f"Consolidating from: {classified_dir}")
+    print(f"Output to:          {output_dir}")
+    print()
+
+    stats = consolidate(classified_dir, output_dir)
+
+    print("=" * 50)
+    print("Consolidation complete")
+    print("=" * 50)
+    print(f"  Total games:         {stats['total']}")
+    print(f"  Flagged for review:  {stats['flagged']}")
+    print(f"  PPTXs found:         {stats['pptx_found']}")
+    print(f"  PPTXs missing:       {stats['pptx_missing']}")
+    print(f"  Unknown features:    {stats['unknown_features_count']}")
+    print()
+    print(f"  Output files:")
+    print(f"    {stats['enriched_path']}")
+    print(f"    {stats['review_path']}")
+    print(f"    {stats['report_path']}")
+
+
+def cmd_merge_review(args):
+    """Merge human-edited review CSV back into games_enriched.csv."""
+    from agents.consolidator import merge_review
+
+    review_path = Path(args.review).resolve()
+    enriched_path = Path(args.enriched).resolve() if args.enriched else PROJECT_ROOT / 'output' / 'games_enriched.csv'
+
+    if not review_path.exists():
+        print(f"Error: Review CSV not found: {review_path}")
+        sys.exit(1)
+    if not enriched_path.exists():
+        print(f"Error: Enriched CSV not found: {enriched_path}")
+        sys.exit(1)
+
+    stats = merge_review(review_path, enriched_path)
+
+    print("=" * 50)
+    print("Merge complete")
+    print("=" * 50)
+    print(f"  Rows merged:       {stats['merged']}")
+    print(f"  Still flagged:     {stats['still_flagged']}")
+    print(f"  Updated:           {enriched_path}")
+
+
+def cmd_stats(args):
+    """Print summary statistics from games_enriched.csv."""
+    import csv
+    from collections import Counter
+
+    enriched_path = Path(args.enriched).resolve() if args.enriched else PROJECT_ROOT / 'output' / 'games_enriched.csv'
+
+    if not enriched_path.exists():
+        print(f"Error: Enriched CSV not found: {enriched_path}")
+        sys.exit(1)
+
+    with open(enriched_path, 'r', encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    total = len(rows)
+    pptx_found = sum(1 for r in rows if r['pptx_found'] == 'True')
+    pptx_missing = total - pptx_found
+
+    theme_counter = Counter()
+    feature_counter = Counter()
+    category_counter = Counter()
+    market_counter = Counter()
+    reason_counter = Counter()
+
+    flagged = 0
+    for r in rows:
+        for t in r['themes'].split('|'):
+            t = t.strip()
+            if t:
+                theme_counter[t] += 1
+        for f in r['features'].split('|'):
+            f = f.strip()
+            if f:
+                feature_counter[f] += 1
+        if r['category']:
+            category_counter[r['category']] += 1
+        for m in r['markets'].split('|'):
+            m = m.strip()
+            if m:
+                market_counter[m] += 1
+        if r['review_flag'] == 'True':
+            flagged += 1
+            for reason in r['review_reason'].split('; '):
+                key = reason.split('=')[0].split(':')[0].strip()
+                if key:
+                    reason_counter[key] += 1
+
+    print("=" * 50)
+    print("Game Enrichment Pipeline — Statistics")
+    print("=" * 50)
+    print(f"\n  Total games:        {total}")
+    print(f"  PPTXs found:        {pptx_found}")
+    print(f"  PPTXs missing:      {pptx_missing}")
+    print(f"\n  Flagged for review: {flagged}")
+    if reason_counter:
+        for reason, count in reason_counter.most_common():
+            print(f"    {reason}: {count}")
+
+    print(f"\n  Top 10 themes:")
+    for theme, count in theme_counter.most_common(10):
+        print(f"    {theme}: {count}")
+
+    print(f"\n  Top 10 features:")
+    for feature, count in feature_counter.most_common(10):
+        print(f"    {feature}: {count}")
+
+    print(f"\n  Games per category:")
+    for cat, count in category_counter.most_common():
+        print(f"    {cat}: {count}")
+
+    print(f"\n  Games per market:")
+    for market, count in market_counter.most_common():
+        print(f"    {market}: {count}")
+
+
+def cmd_run_all(args):
+    """Run full pipeline: extract -> classify -> consolidate."""
+    # Phase 1: Extract
+    print("=" * 50)
+    print("Phase 1: Extraction")
+    print("=" * 50)
+    extract_args = argparse.Namespace(
+        input=args.input,
+        output=None,
+        market_names=None,
+    )
+    cmd_extract(extract_args)
+
+    # Phase 2: Classify
+    print()
+    print("=" * 50)
+    print("Phase 2: Classification")
+    print("=" * 50)
+    classify_args = argparse.Namespace(
+        extracts=None,
+        output=None,
+        market_names=None,
+        dry_run=args.dry_run,
+        include_deactivated=args.include_deactivated,
+    )
+    cmd_classify(classify_args)
+
+    # Phase 3: Consolidate
+    print()
+    print("=" * 50)
+    print("Phase 3: Consolidation")
+    print("=" * 50)
+    consolidate_args = argparse.Namespace(
+        classified=None,
+        output=None,
+    )
+    cmd_consolidate(consolidate_args)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Game Enrichment Pipeline',
@@ -254,9 +427,29 @@ def main():
     p_classify.add_argument('--include-deactivated', action='store_true', help='Include deactivated games')
     p_classify.set_defaults(func=cmd_classify)
 
-    # Placeholder subcommands for future phases
-    subparsers.add_parser('consolidate', help='Phase 3: Consolidate and output CSV (not yet implemented)')
-    subparsers.add_parser('merge-review', help='Merge reviewed CSV back (not yet implemented)')
+    # consolidate
+    p_consolidate = subparsers.add_parser('consolidate', help='Phase 3: Consolidate classified data and output CSVs')
+    p_consolidate.add_argument('--classified', '-c', default=None, help='Path to classified dir (default: data/classified)')
+    p_consolidate.add_argument('--output', '-o', default=None, help='Output dir (default: output)')
+    p_consolidate.set_defaults(func=cmd_consolidate)
+
+    # merge-review
+    p_merge = subparsers.add_parser('merge-review', help='Merge human-edited review CSV back into enriched CSV')
+    p_merge.add_argument('--review', '-r', required=True, help='Path to edited review_flagged.csv')
+    p_merge.add_argument('--enriched', '-e', default=None, help='Path to games_enriched.csv (default: output/games_enriched.csv)')
+    p_merge.set_defaults(func=cmd_merge_review)
+
+    # stats
+    p_stats = subparsers.add_parser('stats', help='Print summary statistics from games_enriched.csv')
+    p_stats.add_argument('--enriched', '-e', default=None, help='Path to games_enriched.csv (default: output/games_enriched.csv)')
+    p_stats.set_defaults(func=cmd_stats)
+
+    # run-all
+    p_runall = subparsers.add_parser('run-all', help='Run full pipeline: extract -> classify -> consolidate')
+    p_runall.add_argument('--input', '-i', required=True, help='Path to PPTX folder root')
+    p_runall.add_argument('--dry-run', action='store_true', help='Extract all, classify first 5 only')
+    p_runall.add_argument('--include-deactivated', action='store_true', help='Include deactivated games')
+    p_runall.set_defaults(func=cmd_run_all)
 
     args = parser.parse_args()
     if not args.command:

@@ -26,3 +26,36 @@
 - [ ] Verify 5 Ca/Se celebrity IPs present in matched families (Charlie Riina, Lisa Mancini, etc.)
 - [ ] Verify games with no PPTX have pptx_found=false and low confidence scores
 - [ ] Confirm no classified JSON has empty themes array
+
+## Session 3 — Consolidation + Output
+
+### CSV output
+- [x] `games_enriched.csv` opens in Excel without encoding issues (UTF-8-BOM)
+- [x] Pipe-separated multi-value fields import cleanly
+- [x] `review_flagged.csv` contains only flagged rows (91 of 128)
+- [x] `review_flagged.csv` has `editor_notes` column at the end
+- [x] Rows sorted: flagged first, then alphabetical by es_commercial_name
+- [x] Category casing normalized (all uppercase)
+
+### merge-review
+- [x] Round-trip test: merge unedited review CSV → 91 merged, 0 still flagged
+- [ ] Real-world test: edit a few rows in Excel, save, re-merge
+
+### stats command
+- [x] Counts match consolidate output
+- [x] Top 10 themes/features display correctly
+- [x] Category and market breakdowns accurate
+
+### unknown features report
+- [x] 51 features aggregated with counts and example games
+- [x] suggested_standard_tag filled for all non-skipped entries
+- [x] 6 new tags + 35 aliases added to seo_taxonomy.json
+- [x] JSON validates after edits
+
+### run-all command
+- [ ] Not tested end-to-end (requires PPTX folder + classify phase)
+
+### Pending human review
+- [ ] Review `output/review_flagged.csv` (91 rows)
+- [ ] Run `python main.py merge-review --review output/review_flagged.csv`
+- [ ] Re-run `python main.py stats` to verify final numbers

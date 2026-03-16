@@ -12,6 +12,7 @@ output an enriched CSV for casino site SEO.
 | Session 1 — Extractor (Feature) | ~35,000 | 53,000 |
 | Session 2a — Classifier scaffolding + test | ~80,000 | 133,000 |
 | Session 2b — Full classification run (Feature) | ~530,000 | 663,000 |
+| Session 3 — Consolidation + taxonomy (Feature) | ~75,000 | 738,000 |
 
 ---
 
@@ -126,19 +127,40 @@ output an enriched CSV for casino site SEO.
 
 ---
 
-### Session 3 — Phase 3: Output + Review (Claude Code)
-**Status:** Not started — next session
-**Plan:**
-- Follow `SESSION_3_PROMPT.md`
-- Build consolidator, CSV output, review workflow, taxonomy expansion report
-- Generate `output/games_enriched.csv` and `output/review_flagged.csv`
-- Generate `output/unknown_features_report.csv`
-- Extend `seo_taxonomy.json` based on unknown features found
-- Record final stats in `dev/ref/stage3-summary.md`
+### Session 3 — Phase 3: Consolidation + Output (Claude Code)
+**Date:** 2026-03-16
+**Status:** Complete
+**Token category:** Feature
+
+**What was done:**
+- Built `agents/consolidator.py` (242 lines) — loads classified JSONs, builds review flags, writes CSVs
+- Added 4 new subcommands to `main.py`: `consolidate`, `merge-review`, `stats`, `run-all`
+- Generated all 3 output CSVs (UTF-8-BOM, pipe-separated multi-values, sorted flagged-first)
+- Normalized category casing (SLOTS3/Slots3 → SLOTS3)
+- Generated unknown features report with suggested mappings (via sub-agent)
+- Expanded `seo_taxonomy.json` v2.0: 6 new tags, 35 new Spanish aliases
+- Tested merge-review round-trip successfully
+- Updated CLAUDE.md with new commands + taxonomy maintenance docs
+
+**Output stats:**
+- 128 games → `games_enriched.csv`
+- 91 flagged → `review_flagged.csv` (57 low feature conf, 39 no market match, 34 unknown features, 23 low theme conf, 7 no PPTX)
+- 51 unknown features → `unknown_features_report.csv` (mapped to 6 new + 5 existing tags, 8 skipped)
+
+**New taxonomy tags:** Nudge & Hold, Minigame, Prize Ladder, Gamble Feature, Multi-Volatility, Twin Spin
+
+**Files created/modified:**
+- `agents/consolidator.py` (new)
+- `main.py` (updated — 4 new subcommands, 468 lines)
+- `config/seo_taxonomy.json` (updated — v2.0, 360 lines)
+- `CLAUDE.md` (updated — new commands, taxonomy maintenance section)
+- `output/*.csv` (3 files, gitignored)
+
+**Key findings:** recorded in `dev/ref/stage3-summary.md`
 
 ---
 
 ## Current status
-**Phase:** Phase 2 complete — all 128 games classified and localisation-resolved
+**Phase:** Phase 3 complete — all output CSVs generated, taxonomy expanded
 **Blocker:** None
-**Next action:** Session 3 — first validate/QA the classification results thoroughly, then read SESSION_3_PROMPT and proceed to Phase 3 (consolidator, CSVs, unknown features report)
+**Next action:** Human review of `output/review_flagged.csv` (91 rows), then `python main.py merge-review --review output/review_flagged.csv`. User will revert if further dev review is needed.

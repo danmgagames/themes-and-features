@@ -146,7 +146,9 @@ Rules:
 2. `python main.py classify --dry-run` — Phase 2, processes first 5 games only (for testing)
 3. `python main.py classify` — Phase 2, full run (parallel subagents)
 4. `python main.py consolidate` — Phase 3, merge + flag
-5. `python main.py merge-review` — after human edits review CSV, re-merge
+5. `python main.py merge-review --review output/review_flagged.csv` — after human edits review CSV, re-merge
+6. `python main.py stats` — print summary statistics from enriched CSV
+7. `python main.py run-all --input "C:\path\to\pptx\folder"` — full pipeline in one command
 
 ## Key implementation notes
 - Use `pathlib.Path` everywhere — not `os.path` — for Windows path compatibility
@@ -199,3 +201,16 @@ Rules:
 - `dev/ref/stage3-summary.md` — created after Session 3 (final output stats)
 - `dev/ref/issues-resolved.md` — create if bugs needed non-obvious fixes
 - `dev/docs/` — read-only reference (do not modify)
+
+## Taxonomy maintenance
+After the first full run:
+1. Review `output/unknown_features_report.csv`
+2. Add new confirmed tags to `config/seo_taxonomy.json` (features section)
+3. Add new Spanish aliases to `config/seo_taxonomy.json` (spanish_aliases.features)
+4. Re-run: `python main.py classify --input data/raw_extracts` (resume logic skips
+   already-classified games; delete `data/classified/` first for a full re-run)
+
+## Adding new PPTXs
+1. Place new files in the correct `CATEGORY/GAMENAME/` folder
+2. Run: `python main.py run-all --input "path\to\folder"`
+   (only new games will be classified — resume logic handles the rest)
