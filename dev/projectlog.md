@@ -9,6 +9,7 @@ output an enriched CSV for casino site SEO.
 | Session | Tokens used | Cumulative |
 |---------|------------|------------|
 | Planning (Claude.ai) | ~18,000 | 18,000 |
+| Session 1 — Extractor (Feature) | ~35,000 | 53,000 |
 
 ---
 
@@ -46,17 +47,29 @@ output an enriched CSV for casino site SEO.
 ---
 
 ### Session 1 — Phase 1: Extractor (Claude Code)
-**Status:** Not started
-**Plan:**
-- Paste `SESSION_1_PROMPT.md` into Claude Code
-- Build `agents/extractor.py` and `main.py extract` subcommand
-- Test against sample PPTX in `test_data/`
-- Note match rate on `market_names.xlsx` fuzzy lookup — if < 80%, normalise folder names first
+**Date:** 2026-03-16
+**Status:** Complete
+**Category:** Feature
+**Context limits hit:** No
 
-**Watch for:**
-- How many Spain-only games don't fuzzy-match (affects Session 2 cost)
-- Any PPTX structures that differ significantly from the 3-slide sample
-- Record findings in `dev/ref/stage1-summary.md`
+**What was done:**
+- Built `agents/extractor.py` (246 lines) and `main.py` (92 lines)
+- Created `requirements.txt` with pinned deps
+- Adapted to real folder structure (differs from plan — see stage1-summary)
+- Ran full extraction: 128 unique games, 121 with PPTXs, 51/53 Comercial files with category slide
+- Broadened slide detection to catch "TEMÁTICAS" and "CARACTERISTICAS" headers (newer PPTX format)
+
+**Files created/modified:**
+- `agents/__init__.py`, `agents/extractor.py`, `main.py`, `requirements.txt`
+- `data/raw_extracts/*.json` (128 files, gitignored)
+
+**Key findings:** recorded in `dev/ref/stage1-summary.md`
+
+**Outstanding for Session 2:**
+- [ ] `market_names.xlsx` not in repo — market lookup skipped. Obtain file or skip market resolution.
+- [ ] Obtain ANTHROPIC_API_KEY for classifier API calls
+- [ ] 68 non-Comercial PPTXs lack structured category slides — classifier must work from raw text
+- [ ] 10 games have no PPTX at all — flag for manual review
 
 ---
 
@@ -85,6 +98,6 @@ output an enriched CSV for casino site SEO.
 ---
 
 ## Current status
-**Phase:** Pre-development — scaffold complete, ready for Session 1
-**Blocker:** None — ready to start
-**Next action:** Open Claude Code, place project files, paste SESSION_1_PROMPT.md
+**Phase:** Phase 1 complete — extraction done, ready for Session 2 (classifiers)
+**Blocker:** Need ANTHROPIC_API_KEY; market_names.xlsx missing (optional)
+**Next action:** Run SESSION_2_PROMPT — build theme/feature classifiers, dry-run on 5 games

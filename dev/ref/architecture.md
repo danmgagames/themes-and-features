@@ -35,16 +35,30 @@
 - Spain entry = canonical / source-of-truth for each family
 - Canada (Ca) + Sweden (Se) variants attach celebrity IPs (detect by commercial name prefix diff)
 
-## PPTX structure (observed in sample)
-- Slide 1: title (game name + category)
-- Slide 2: "CATEGORIAS PRODUCTO" — primary source (mixed themes + features as bullets)
-- Slide 3: "ARGUMENTOS DE VENTA" — secondary source (selling points, confirms features)
-- No notes slides used
-- Shape names are Spanish ("CuadroTexto", "Imagen") — not reliable for classification
-- Themes and features are NOT structurally separated in slide 2 — Claude must classify them
-- DEVELOPMENT section on slide 2 = internal dev notes, skip
+## PPTX structure (observed across 121 files)
+
+### Format A — "Comercial" standard (45 games)
+- Slide 2: "VENTA – CATEGORIAS PRODUCTO" — theme/feature tags as bullets
+- Slide 3: "ARGUMENTOS DE VENTA" — selling points
+
+### Format B — "Comercial" newer (8 games)
+- Slide 2: "TEMÁTICAS" or "HISTORIA"
+- Slide 3: "CARACTERISTICAS" — structured fields incl "Categorías: ..."
+
+### Format C — Server/Design fallback (68 games)
+- No structured category slides; raw game text only
+
+### Common noise patterns (filtered by extractor)
+- DESARROLLO section = internal dev notes, skip
 - Disclaimer lines start with `*` — skip
 - Standalone numbers (1,2,3,4) = layout artefacts — skip
+- "Internacional MGA", "Localización (Audios y textos)" = distribution notes, skip
+
+## Actual folder structure
+`CATEGORY/[CATEGORY/]NNNN_GameName/[files]`
+- MegaWays: 2 levels deep
+- Slots3, Slots5: 3 levels deep (repeated category subdir)
+- Game folders have numeric prefix: `0376_Take_The_Money_Megaways`
 
 ## Output schema
 See CLAUDE.md "Output schema" section for full column list.

@@ -22,6 +22,7 @@ game-enrichment/
 │   └── consolidator.py             ← Phase 3: merges subagent outputs, flags low confidence
 ├── data/
 │   └── raw_extracts/                ← one JSON file per game (output of Phase 1)
+├── POWERPOINTS/                     ← This folder contains all the PPTX files for processing
 └── output/
     ├── games_enriched.csv           ← final output: one row per game family
     └── review_flagged.csv           ← subset: rows needing human review
