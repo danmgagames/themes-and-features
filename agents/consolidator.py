@@ -15,6 +15,46 @@ logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD = 0.75
 
+# SLOTS3 games always get these default features
+SLOTS3_DEFAULT_FEATURES = ['Mini-Games', 'Bonos Superiores', 'Dual-Screen Layout']
+
+# Feature renames applied to all games
+FEATURE_RENAMES = {
+    'Free Spins': 'Free Rounds',
+    'Minigame': 'Mini-Games',
+}
+
+
+def normalize_features(features: list[str], category: str) -> list[str]:
+    """Apply feature normalization rules from human review feedback.
+
+    1. Rename tags (Free Spins → Free Rounds, Minigame → Mini-Games)
+    2. Deduplicate: drop 'Bonus Round' when 'Bonus Game' is present
+    3. Add SLOTS3 default features for SLOTS3 category games
+    """
+    # Apply renames
+    features = [FEATURE_RENAMES.get(f, f) for f in features]
+
+    # Deduplicate Bonus Game / Bonus Round
+    if 'Bonus Game' in features and 'Bonus Round' in features:
+        features = [f for f in features if f != 'Bonus Round']
+
+    # Add SLOTS3 defaults
+    if category.upper() == 'SLOTS3':
+        for default in SLOTS3_DEFAULT_FEATURES:
+            if default not in features:
+                features.append(default)
+
+    # Remove any exact duplicates while preserving order
+    seen = set()
+    deduped = []
+    for f in features:
+        if f not in seen:
+            seen.add(f)
+            deduped.append(f)
+
+    return deduped
+
 OUTPUT_COLUMNS = [
     'base_key', 'es_commercial_name', 'category', 'markets', 'themes',
     'features', 'celebrity_names', 'theme_confidence', 'feature_confidence',
@@ -55,13 +95,16 @@ def build_row(game: dict) -> dict:
 
     review_flag = len(reasons) > 0
 
+    category = (game.get('category') or '').upper()
+    features = normalize_features(game.get('features', []), category)
+
     return {
         'base_key': game.get('base_key', ''),
         'es_commercial_name': game.get('es_commercial_name') or '',
-        'category': (game.get('category') or '').upper(),
+        'category': category,
         'markets': '|'.join(game.get('markets', [])),
         'themes': '|'.join(game.get('themes', [])),
-        'features': '|'.join(game.get('features', [])),
+        'features': '|'.join(features),
         'celebrity_names': '|'.join(game.get('celebrity_names', [])),
         'theme_confidence': theme_conf,
         'feature_confidence': feature_conf,

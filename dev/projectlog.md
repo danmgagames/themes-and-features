@@ -13,6 +13,7 @@ output an enriched CSV for casino site SEO.
 | Session 2a — Classifier scaffolding + test | ~80,000 | 133,000 |
 | Session 2b — Full classification run (Feature) | ~530,000 | 663,000 |
 | Session 3 — Consolidation + taxonomy (Feature) | ~75,000 | 738,000 |
+| Session 4 — Human review merge + report (Feature) | ~40,000 | 778,000 |
 
 ---
 
@@ -160,7 +161,30 @@ output an enriched CSV for casino site SEO.
 
 ---
 
+### Session 4 — Human review feedback + HTML report (Claude Code)
+**Date:** 2026-03-19
+**Status:** Complete
+**Token category:** Feature
+
+**What was done:**
+- Applied 3 human review feedback items to consolidator pipeline:
+  1. SLOTS3 default features: all 91 SLOTS3 games now auto-receive Mini-Games, Bonos Superiores, Dual-Screen Layout
+  2. Feature dedup: "Bonus Round" removed when "Bonus Game" present
+  3. Renamed "Free Spins" → "Free Rounds" across taxonomy + consolidator
+- Updated `seo_taxonomy.json` to v2.1 (renames, new SLOTS3 Standard category, removed Bonus Round from tag list)
+- Added `normalize_features()` to consolidator — applies renames, dedup, and SLOTS3 defaults at consolidation time
+- Merged 91 human-reviewed rows back into enriched CSV (0 still flagged)
+- Built `generate_report.py` → `output/enrichment_report.html` (dark theme, bar charts, EN/ES toggle)
+
+**Files created/modified:**
+- `agents/consolidator.py` (modified — added normalize_features, 285 lines)
+- `config/seo_taxonomy.json` (modified — v2.1, 364 lines)
+- `generate_report.py` (new — HTML report generator)
+- `output/enrichment_report.html` (new, gitignored)
+
+---
+
 ## Current status
-**Phase:** Phase 3 complete — all output CSVs generated, taxonomy expanded
+**Phase:** Pipeline complete — all games enriched, human review merged, report generated
 **Blocker:** None
-**Next action:** Human review of `output/review_flagged.csv` (91 rows), then `python main.py merge-review --review output/review_flagged.csv`. User will revert if further dev review is needed.
+**Next action:** Team reviews `output/enrichment_report.html` to decide final tag set. Then finalize taxonomy if changes needed.

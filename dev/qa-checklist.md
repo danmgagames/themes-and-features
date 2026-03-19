@@ -39,7 +39,7 @@
 
 ### merge-review
 - [x] Round-trip test: merge unedited review CSV → 91 merged, 0 still flagged
-- [ ] Real-world test: edit a few rows in Excel, save, re-merge
+- [x] Real-world test: human-edited review CSV merged — 91 merged, 0 still flagged
 
 ### stats command
 - [x] Counts match consolidate output
@@ -56,6 +56,22 @@
 - [ ] Not tested end-to-end (requires PPTX folder + classify phase)
 
 ### Pending human review
-- [ ] Review `output/review_flagged.csv` (91 rows)
-- [ ] Run `python main.py merge-review --review output/review_flagged.csv`
-- [ ] Re-run `python main.py stats` to verify final numbers
+- [x] Review `output/review_flagged.csv` (91 rows)
+- [x] Run `python main.py merge-review --review output/review_flagged.csv`
+- [x] Re-run `python main.py stats` to verify final numbers
+
+## Session 4 — Human review feedback + HTML report
+
+### Feature normalization
+- [x] "Free Spins" renamed to "Free Rounds" in enriched CSV (no standalone "Free Spins" remains)
+- [x] "Progressive Free Spins" and "Buy Free Spins" unchanged (correct — only standalone renamed)
+- [x] "Bonus Round" removed where "Bonus Game" coexists (1 game with only "Bonus Round" correctly kept)
+- [x] All 91 SLOTS3 games have Mini-Games, Bonos Superiores, Dual-Screen Layout
+- [x] `seo_taxonomy.json` v2.1 validates as JSON
+
+### HTML report
+- [x] `generate_report.py` runs without errors
+- [x] `output/enrichment_report.html` opens in browser
+- [x] EN/ES toggle switches all UI text
+- [x] Theme/feature tag names remain in English in both languages
+- [ ] Spot-check: bar chart widths proportional to counts
