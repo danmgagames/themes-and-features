@@ -298,8 +298,15 @@ output an enriched CSV for casino site SEO.
 
 ## Current status
 **Phase:** Sessions 6a + 6b complete. 138 of 138 NEW base_keys classified from PDFs. Only the 47 PDF backfills for Session-5-classified games remain (Session 6c, Description column only).
-**Blocker:** None.
-**Next action:** Session 6c — 47 PDF backfills. Run `/catchup` first if context cleared.
+**Blocker:** Awaiting Max-plan token-window refresh — 6a+6b consumed ~820k tokens back-to-back. Resume 6c only after window resets.
+**Next action:** Session 6c — 47 PDF backfills. After token-window resets, start a fresh conversation with `/catchup`, then run the backfill waves.
+
+**Session 6c kickoff cheat-sheet:**
+1. `/catchup` — read this projectlog + `dev/ref/stage6b-summary.md` + `dev/_session6a_batches/PROMPT_TEMPLATE.md`
+2. Build 6c batches: clone `dev/session6b_batches.py` to `dev/session6c_batches.py`, but invert the filter — target `bk in enriched_keys AND bk has a PDF extract` (the 47 Session-5 games).
+3. Add a Description-only override to the prompt template OR a new `dev/_session6c_batches/PROMPT_TEMPLATE.md`: instruct sub-agents to compute themes/features as normal but ALSO populate `description`. Then write a small post-processor that compares 6c themes/features against the existing Session-5 classification and logs material disagreements (theme/feature confidence ≥ 0.85 AND tags differ) to `output/backfill_diffs.csv` — Session 5 stays authoritative until human review.
+4. ~6 sub-agents, 2 waves, ~250k tokens.
+5. Validate, refresh outputs, commit, push.
 
 **Outstanding:**
 1. Session 6c — 47 PDF backfills for Session-5 games (description column only; preserve themes/features unless material disagreement → log to `output/backfill_diffs.csv`). ~6 sub-agents in 2 waves, ~250k tokens.
