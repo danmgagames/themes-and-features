@@ -75,3 +75,38 @@
 - [x] EN/ES toggle switches all UI text
 - [x] Theme/feature tag names remain in English in both languages
 - [ ] Spot-check: bar chart widths proportional to counts
+
+## Session 6a — PDF enrichment + PP candidate side-channel
+
+### PDF extraction
+- [ ] Spot-check 3 PDF extracts in `data/pdf_extracts/` — text reasonable, no garbled mojibake
+- [ ] Verify the 4 PDF discovery rules cover SLOTS5 / BINGO / RULETA conventions (Marketing Assets/06., Gamesheets/, descripcion/, fallback)
+- [ ] Verify `--overwrite` flag forces re-extraction; default skip-when-enriched is idempotent
+- [ ] Verify 19 truly-orphaned folders are 3rd-party / external-IP games not in market_names.xlsx (confirm by reading 5 samples in `output/pdf_coverage_survey.csv`)
+
+### Sub-agent classification (84 new games)
+- [ ] Spot-check 5 random `data/classified/<base_key>.json` against the source PDF — themes/features plausible, description verbatim or cleanly translated
+- [ ] Confirm no SLOTS5 PDF mentions Advance/Hold without `Nudge & Hold` tagged
+- [ ] Confirm no celebrity-named game lacks `Celebrities` + the person's name as themes
+- [ ] Spot-check `description` field for hyphen-rejoin (e.g. "Ri-quezas" → "Riquezas") and removed column-header artefacts ("CASINO SLOTS", "MAIN GAME")
+
+### PP candidate side-channel (the side-channel must NOT leak into features)
+- [ ] Open `output/pp_mechanic_candidates.csv` — confirm 4 rows: 3× Increasing Wilds, 1× Mystery Expanding Symbol
+- [ ] For each of the 4 candidate games, open the PDF on the X drive and confirm the evidence quote is verbatim from the source
+- [ ] grep `data/classified/*.json` for `Hyperplay|Powernudge|Super Scatter` — must find zero hits anywhere
+- [ ] grep for `Increasing Wilds|Mystery Expanding Symbol` — only inside `pp_candidate_mechanics` arrays, never in `features` or `unknown_features`
+- [ ] Confirm Powernudge-style language (if any in 6a games) was tagged as `Nudge & Hold` (not flagged as PP candidate)
+
+### Cross-market deliverable
+- [ ] Open the latest `themes_features_by_market.xlsx` (or `.LATEST.xlsx` if Excel was open during 6a). Confirm 5 columns per sheet: GameName, Category, Themes, Features, Description
+- [ ] Confirm no regression on the 69 Session-5 rows (themes/features unchanged where present)
+- [ ] Confirm the 159 newly enriched rows have populated Themes + Features
+- [ ] Description column populated only for the 84 PDF-sourced games; the 62 Session-5 games still have blank Description (pending 6c backfill)
+
+### Validation gate
+- [x] All 7 checks in `dev/validate_session6a.py` passed
+- [ ] Re-run `python dev/validate_session6a.py` after any manual touchups to confirm clean state
+
+### Pending tracker
+- [ ] Investigate `localisation_resolver.match_extract_to_family` no-match for 51/146 (SPAIN/.COM cname masking quirk). Decide: (a) fix in Session 6b by adding the same per-market lookup the PDF extractor uses, or (b) leave alone since cross-market deliverable still works.
+- [ ] Once Product greenlights any of the 4 PP candidate mechanics → bump taxonomy to v2.4, dispatch a tiny re-classification wave for just the 4 affected games (Diamond Mine, Explosive Bandit 2, Explosive Wizard Cat, Dragons Double Pot).

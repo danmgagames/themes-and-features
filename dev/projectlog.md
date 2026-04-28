@@ -17,6 +17,14 @@ output an enriched CSV for casino site SEO.
 | Session 5 — Re-run + AM_Masterlist join + PP taxonomy parity | ~450,000 | 1,228,000 |
 | Session 6a — PDF enrichment (80 games) + PP candidate side-channel | ~480,000 | 1,708,000 |
 
+**Category split for Session 6a:** Feature 95% (PDF pipeline + PP side-channel + new market xlsx column), Bug fix 5% (per-market commercial-name lookup that fixed 85 unmatched folders). No Rework, no Cleanup.
+
+**Budget status:** No `dev/ref/budget.md` exists yet — no per-session budget to compare against. Session 6a's 480k tokens used ~60% of the user's current 5-hour Max-plan window. Estimated 6b would push cumulative to ~105% if run back-to-back; **plan is to wait for window reset before 6b** (or split 6b into two sub-sessions).
+
+**Context limits / splitting:** Session deliberately split per plan: 6a (this session, 80 NEW games) → hard pause → 6b (58 NEW games, fresh context) → 6c (47 backfills, fresh context). Did NOT hit context limits this session.
+
+**File-size flag:** `main.py` is now **673 lines** (was 468 after Session 5; +200 from `cmd_extract_pdfs` + subparser wiring). Crosses the 500-line threshold. Suggest discussing a split next session — natural seams: (a) move each `cmd_*` function into `agents/cli/<command>.py` modules and keep `main.py` as the slim subparser entry point, or (b) split into `main_extract.py` / `main_classify.py` / `main_consolidate.py`. `agents/consolidator.py` is at 387, `agents/extractor.py` at 392, `agents/pdf_extractor.py` at 474 — all comfortably under.
+
 ---
 
 ## Session log
