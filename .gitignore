@@ -1,7 +1,11 @@
 POWERPOINTS/
 dev/SessionPrompts/
+dev/_session6a_batches/batch_*.json
+dev/_session6b_batches/
+dev/_session6c_batches/
 data/raw_extracts/
 data/classified/
+data/pdf_extracts/
 data/classifier_log.jsonl
 output/
 .env
