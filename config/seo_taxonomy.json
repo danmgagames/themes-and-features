@@ -4,7 +4,7 @@
     "features": "MGA-specific mechanic/feature tags. Derived from PPTX extraction pass — this list will grow during Session 2. The classifier maps Spanish internal terms to these standard English labels.",
     "celebrity_rule": "For celebrity-attached games: assign 'Celebrities' tag PLUS the celebrity's own name as a tag (e.g. 'Abigail Ratchford') PLUS any relevant genre/sport tag (e.g. 'Sports', 'Racing'). This maximises SEO surface area.",
     "confidence_threshold": 0.75,
-    "version": "2.1 — human review feedback: Free Spins→Free Rounds, dedupe Bonus Game/Round, SLOTS3 defaults, Mini-Games rename"
+    "version": "2.3 — Pragmatic Play parity pass: 18 new themes (Bees, Pigs, Chickens, Monkeys, Flowers, Phoenix, Goldmine, Cops & Robbers, Train, Scientist, John Hunter, Presidents, Brazil, Irish, Native American, Love, Queen, Cheese). Previous: 2.2 — added 'Ancient Civilisations' umbrella tag. 2.1 — human review feedback: Free Spins→Free Rounds, dedupe Bonus Game/Round, SLOTS3 defaults, Mini-Games rename"
   },
 
   "themes": {
@@ -24,6 +24,11 @@
       "Rhinos",
       "Frogs",
       "Butterflies",
+      "Bees",
+      "Pigs",
+      "Chickens",
+      "Monkeys",
+      "Flowers",
       "Fishing",
       "Sea",
       "Water",
@@ -46,7 +51,8 @@
       "Unicorns",
       "Monsters",
       "Demons",
-      "Angels"
+      "Angels",
+      "Phoenix"
     ],
 
     "Sci-Fi & Futuristic": [
@@ -60,6 +66,7 @@
     ],
 
     "Ancient Civilisations": [
+      "Ancient Civilisations",
       "Egyptian",
       "Greek",
       "Roman",
@@ -77,6 +84,7 @@
 
     "Wealth & Fortune": [
       "Gold",
+      "Goldmine",
       "Gems",
       "Treasure",
       "Fortune",
@@ -94,6 +102,7 @@
       "Adventure",
       "Heist",
       "Crime",
+      "Cops & Robbers",
       "Pirates",
       "Western",
       "Wild West",
@@ -105,11 +114,15 @@
       "Horror",
       "Zombies",
       "Halloween",
-      "Vampires"
+      "Vampires",
+      "Train",
+      "Scientist",
+      "John Hunter"
     ],
 
     "Movies & TV": [
-      "Movies & TV"
+      "Movies & TV",
+      "Presidents"
     ],
 
     "Sport": [
@@ -132,16 +145,22 @@
       "Candy",
       "Food",
       "Cake",
-      "Chocolate"
+      "Chocolate",
+      "Cheese"
     ],
 
     "Culture & Lifestyle": [
       "Latin",
       "Mexican",
+      "Brazil",
+      "Irish",
+      "Native American",
       "Fiesta",
       "Dance",
       "Music",
       "Party",
+      "Love",
+      "Queen",
       "Glamour",
       "Fashion",
       "Vegas",

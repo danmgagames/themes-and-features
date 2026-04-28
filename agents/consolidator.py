@@ -24,6 +24,15 @@ FEATURE_RENAMES = {
     'Minigame': 'Mini-Games',
 }
 
+# Sanctioned PP candidate mechanics (Powernudge is intentionally excluded —
+# it remaps to the existing 'Nudge & Hold' tag in the classifier prompt).
+SANCTIONED_PP_MECHANICS = {
+    'Hyperplay',
+    'Increasing Wilds',
+    'Mystery Expanding Symbol',
+    'Super Scatter',
+}
+
 
 def normalize_features(features: list[str], category: str) -> list[str]:
     """Apply feature normalization rules from human review feedback.
@@ -55,10 +64,30 @@ def normalize_features(features: list[str], category: str) -> list[str]:
 
     return deduped
 
+AM_COLUMNS = [
+    'am_tier', 'am_release_date', 'am_rtp', 'am_volatility',
+    'am_max_multiplier', 'am_pay_lines', 'am_reels', 'am_demo_url',
+    'am_match_method',
+]
+
 OUTPUT_COLUMNS = [
     'base_key', 'es_commercial_name', 'category', 'markets', 'themes',
-    'features', 'celebrity_names', 'theme_confidence', 'feature_confidence',
-    'localisation_match_confidence', 'pptx_found', 'review_flag', 'review_reason',
+    'features', 'description', 'celebrity_names',
+    'theme_confidence', 'feature_confidence',
+    'localisation_match_confidence', 'pptx_found', 'pdf_found',
+    'pdf_source_language',
+    *AM_COLUMNS,
+    'review_flag', 'review_reason',
+]
+
+PP_CANDIDATE_COLUMNS = [
+    'base_key', 'es_commercial_name', 'category', 'markets',
+    'suggested_pp_mechanics', 'evidence_quotes', 'pdf_source_language',
+]
+
+GAP_REPORT_COLUMNS = [
+    'commercial_name', 'category', 'tier', 'release_date',
+    'volatility', 'rtp', 'demo_url', 'notes',
 ]
 
 
@@ -93,26 +122,81 @@ def build_row(game: dict) -> dict:
     if game.get('unknown_features'):
         reasons.append(f'unknown_features: {", ".join(game["unknown_features"])}')
 
+    am_match_method = game.get('am_match_method', 'none')
+    loc_method = game.get('localisation_match_method', '')
+    if am_match_method == 'none' and loc_method and loc_method != 'none':
+        reasons.append('no_am_masterlist_match')
+
     review_flag = len(reasons) > 0
 
     category = (game.get('category') or '').upper()
     features = normalize_features(game.get('features', []), category)
 
-    return {
+    row = {
         'base_key': game.get('base_key', ''),
         'es_commercial_name': game.get('es_commercial_name') or '',
         'category': category,
         'markets': '|'.join(game.get('markets', [])),
         'themes': '|'.join(game.get('themes', [])),
         'features': '|'.join(features),
+        'description': game.get('description') or '',
         'celebrity_names': '|'.join(game.get('celebrity_names', [])),
         'theme_confidence': theme_conf,
         'feature_confidence': feature_conf,
         'localisation_match_confidence': loc_conf,
         'pptx_found': pptx_found,
+        'pdf_found': game.get('pdf_found', False),
+        'pdf_source_language': game.get('pdf_source_language') or '',
         'review_flag': review_flag,
         'review_reason': '; '.join(reasons) if reasons else '',
     }
+    for col in AM_COLUMNS:
+        row[col] = game.get(col, '')
+    return row
+
+
+def build_pp_candidate_report(games: list[dict]) -> list[dict]:
+    """
+    Aggregate sub-agent-suggested Pragmatic Play mechanic candidates per game.
+
+    Filters strictly to the 4 sanctioned strings (Powernudge intentionally
+    excluded — it remaps to 'Nudge & Hold' upstream). Anything else is
+    dropped defensively, even if a sub-agent slips it past the prompt.
+    """
+    rows = []
+    for game in games:
+        candidates = game.get('pp_candidate_mechanics') or []
+        if not isinstance(candidates, list) or not candidates:
+            continue
+
+        accepted = []
+        for c in candidates:
+            if not isinstance(c, dict):
+                continue
+            mechanic = str(c.get('mechanic', '') or '').strip()
+            if mechanic not in SANCTIONED_PP_MECHANICS:
+                continue
+            quote = str(c.get('evidence_quote', '') or '').strip()[:200]
+            accepted.append((mechanic, quote))
+
+        if not accepted:
+            continue
+
+        mechanics = sorted({m for m, _ in accepted})
+        quotes = [f"[{m}] {q}" for m, q in accepted if q]
+
+        rows.append({
+            'base_key': game.get('base_key', ''),
+            'es_commercial_name': game.get('es_commercial_name') or '',
+            'category': (game.get('category') or '').upper(),
+            'markets': '|'.join(game.get('markets', [])),
+            'suggested_pp_mechanics': '|'.join(mechanics),
+            'evidence_quotes': ' || '.join(quotes),
+            'pdf_source_language': game.get('pdf_source_language') or '',
+        })
+
+    rows.sort(key=lambda r: (r['suggested_pp_mechanics'], r['base_key']))
+    return rows
 
 
 def sort_rows(rows: list[dict]) -> list[dict]:
@@ -156,7 +240,7 @@ def build_unknown_features_report(games: list[dict]) -> list[dict]:
     return report
 
 
-def consolidate(classified_dir: Path, output_dir: Path) -> dict:
+def consolidate(classified_dir: Path, output_dir: Path, am_masterlist_path: Path | None = None) -> dict:
     """
     Main consolidation entry point.
     Returns stats dict.
@@ -181,6 +265,20 @@ def consolidate(classified_dir: Path, output_dir: Path) -> dict:
     report = build_unknown_features_report(games)
     report_path = output_dir / 'unknown_features_report.csv'
     write_csv(report, report_path, ['unknown_feature', 'count', 'example_games', 'suggested_standard_tag'])
+
+    # Write PP candidate report (Pragmatic Play mechanics suggested but not in taxonomy)
+    pp_candidate_rows = build_pp_candidate_report(games)
+    pp_candidate_path = output_dir / 'pp_mechanic_candidates.csv'
+    write_csv(pp_candidate_rows, pp_candidate_path, PP_CANDIDATE_COLUMNS)
+
+    # Write AM Spain gap report (games in AM Masterlist with no PPTX coverage)
+    gap_path = output_dir / 'am_spain_gap_report.csv'
+    gap_rows = []
+    if am_masterlist_path and am_masterlist_path.exists():
+        from agents.am_masterlist import load_am_spain, build_gap_report
+        am_rows = load_am_spain(am_masterlist_path)
+        gap_rows = build_gap_report(am_rows, games)
+        write_csv(gap_rows, gap_path, GAP_REPORT_COLUMNS)
 
     # Compute stats
     total = len(rows)
@@ -232,9 +330,13 @@ def consolidate(classified_dir: Path, output_dir: Path) -> dict:
         'markets': market_counter.most_common(),
         'review_reasons': reason_counter.most_common(),
         'unknown_features_count': len(report),
+        'pp_candidates_count': len(pp_candidate_rows),
+        'gap_report_count': len(gap_rows),
         'enriched_path': str(enriched_path),
         'review_path': str(review_path),
         'report_path': str(report_path),
+        'pp_candidate_path': str(pp_candidate_path),
+        'gap_report_path': str(gap_path),
     }
 
     return stats

@@ -14,6 +14,8 @@ output an enriched CSV for casino site SEO.
 | Session 2b — Full classification run (Feature) | ~530,000 | 663,000 |
 | Session 3 — Consolidation + taxonomy (Feature) | ~75,000 | 738,000 |
 | Session 4 — Human review merge + report (Feature) | ~40,000 | 778,000 |
+| Session 5 — Re-run + AM_Masterlist join + PP taxonomy parity | ~450,000 | 1,228,000 |
+| Session 6a — PDF enrichment (80 games) + PP candidate side-channel | ~480,000 | 1,708,000 |
 
 ---
 
@@ -184,7 +186,89 @@ output an enriched CSV for casino site SEO.
 
 ---
 
+### Session 5 — Re-run + AM_Masterlist join + PP taxonomy parity (Claude Code)
+**Date:** 2026-04-28
+**Status:** Complete
+**Token category:** Feature
+
+**What was done:**
+- Recovered from lost outputs (`output/`, `data/raw_extracts/`, `data/classified/`, `POWERPOINTS/` all gone from disk).
+- New PPTX folder downloaded to `data/01_Definicion Productos/` — partial: 62 game folders (MegaWays 11, Slots3 49, Boost&Win 2). Missing: Slots5, Bingo.
+- Added `config/AM_Masterlist.xlsx` (6 market sheets, 503 rows total, 232 SPAIN). Used to attach current-live SEO spec data.
+- **Code changes:** category normalization in `agents/extractor.py`; new `agents/am_masterlist.py` (load/match/gap-report); new `localise` subcommand in `main.py` (replaces broken API-based `cmd_classify`); 9 AM columns + gap-report write in `agents/consolidator.py`.
+- **Pipeline re-run:** Phase 1 (62 extracts) → Phase 2 sub-agents (8 batches × 8 games × 3 waves of 3-3-2 parallel) → localise + AM enrichment → consolidate → HTML report.
+- **Outputs:** `games_enriched.csv` (62 rows × 22 cols), `review_flagged.csv` (53 rows), `unknown_features_report.csv` (17), `am_spain_gap_report.csv` (197 rows = 232 AM Spain – 35 covered).
+- New: `generate_market_xlsx.py` produces `output/themes_features_by_market.xlsx` — one sheet per AM market (SPAIN, PORTUGAL, .COM, NETHERLANDS, ITALY, COLOMBIA), all 503 AM rows preserved, themes/features populated where the localised name links via market_names.xlsx → base_key → enriched.
+- **Taxonomy bumps**: v2.2 (added 'Ancient Civilisations' as explicit umbrella tag — was a category-only token previously). v2.3 (Pragmatic Play parity pass: 18 new themes added — Bees, Pigs, Chickens, Monkeys, Flowers, Phoenix, Goldmine, Cops & Robbers, Train, Scientist, John Hunter, Presidents, Brazil, Irish, Native American, Love, Queen, Cheese).
+- **Consistency audit:** 0 unauthorised feature drift, 0 unauthorised theme drift after v2.2; all 12 celebrity-name tags compliant with co-occurrence rule.
+- **PP mechanics review** generated as `output/missing_mechanics_review.xlsx` — 5 mechanics with English + Spanish descriptions for Product team review (Hyperplay, Increasing Wilds, Mystery Expanding Symbol, Powernudge, Super Scatter).
+
+**Files created/modified:**
+- `agents/extractor.py` — `_normalize_category` helper
+- `agents/am_masterlist.py` — NEW
+- `agents/consolidator.py` — extended with AM columns + gap report
+- `main.py` — new `localise` subcommand, AM Masterlist arg on consolidate
+- `config/seo_taxonomy.json` — v2.3
+- `generate_market_xlsx.py` — NEW
+- `generate_missing_mechanics_xlsx.py` — NEW
+- `output/*.csv`, `output/themes_features_by_market.xlsx`, `output/missing_mechanics_review.xlsx`, `output/enrichment_report.html`
+
+---
+
+### Session 6a — PDF-based enrichment + PP candidate side-channel (Claude Code)
+**Date:** 2026-04-28
+**Status:** Complete. HARD-PAUSE per plan — resume 6b in fresh context via `/catchup`.
+**Token category:** Feature
+
+**What was done:**
+- Built PDF pipeline: `agents/pdf_extractor.py` (walks 7-market FinalesProducto tree, 4-rule PDF discovery, pypdf+pdfplumber extraction, per-market commercial-name lookup that sidesteps the SPAIN/`.COM` cname quirk) + `extract-pdfs` subcommand in main.py + pypdf/pdfplumber added to requirements.
+- Extended consolidator with `description`, `pdf_found`, `pdf_source_language` columns and a new `build_pp_candidate_report()` emitting `output/pp_mechanic_candidates.csv` (4 sanctioned PP mechanics, Powernudge excluded — it remaps to existing `Nudge & Hold`).
+- `generate_market_xlsx.py` extended to 5 columns (Description added) with a fallback save-path when target file is open in Excel.
+- Survey: 479 game folders scanned, 333 PDFs found, 185 unique base_keys with PDFs.
+- Calibration: 1 sub-agent × 4 SLOTS5 EN games = 32k tokens (~8k/game) — far below 80k threshold.
+- 80 NEW base_keys classified via 10 sub-agents in 4 waves (3-3-3-1). Schema/PP-leak/coverage validation all pass (`dev/validate_session6a.py`).
+- 4 PP candidate hits captured in `output/pp_mechanic_candidates.csv`: 3× Increasing Wilds (Diamond Mine, Explosive Bandit 2, Explosive Wizard Cat), 1× Mystery Expanding Symbol (Dragons Double Pot). Evidence quotes are verbatim and look like genuine matches.
+
+**Coverage delta** in `themes_features_by_market.xlsx`:
+| Market | Pre | Post | Δ |
+|---|---:|---:|---:|
+| SPAIN | 39 | 83 | +44 |
+| PORTUGAL | 11 | 42 | +31 |
+| .COM | 9 | 57 | +48 |
+| NETHERLANDS | 4 | 15 | +11 |
+| ITALY | 6 | 23 | +17 |
+| COLOMBIA | 0 | 8 | +8 |
+| **Totals** | **69** | **228** | **+159** |
+
+**Files created/modified:**
+- `agents/pdf_extractor.py` (NEW)
+- `agents/consolidator.py` (description, pp_candidate_report, pdf_found cols)
+- `main.py` (extract-pdfs subcommand)
+- `generate_market_xlsx.py` (Description col + Excel-locked fallback)
+- `requirements.txt` (pypdf, pdfplumber)
+- `dev/session6a_batches.py` (NEW — wave builder)
+- `dev/validate_session6a.py` (NEW — validation gate)
+- `dev/_session6a_batches/PROMPT_TEMPLATE.md` + 10 batch files (NEW)
+- `data/pdf_extracts/*.json` (185 files, gitignored)
+- `data/classified/*.json` (84 new this session, 146 total)
+- `output/games_enriched.csv` (146 rows, 7 new cols)
+- `output/themes_features_by_market.xlsx` (or `.LATEST.xlsx` if Excel was open)
+- `output/pp_mechanic_candidates.csv` (NEW — 4 rows)
+- `output/pdf_coverage_survey.csv` (NEW — 479 rows)
+- `dev/ref/stage6a-summary.md` (NEW)
+
+**Risks observed (non-blocking):**
+- `localisation_resolver.match_extract_to_family` no-match for 51/146 — same SPAIN/.COM cname quirk. Cross-market deliverable still works (joins via AM directly). Fix in 6b if there's headroom.
+
+---
+
 ## Current status
-**Phase:** Pipeline complete — all games enriched, human review merged, report generated
-**Blocker:** None
-**Next action:** Team reviews `output/enrichment_report.html` to decide final tag set. Then finalize taxonomy if changes needed.
+**Phase:** Session 6a complete. 84 of 138 NEW base_keys classified from PDFs; 58 NEW + 47 backfill remain.
+**Blocker:** None. User should close Excel and rename `themes_features_by_market.LATEST.xlsx` over the original.
+**Next action:** Session 6b — classify the remaining ~58 NEW base_keys (mostly SLOTS3) in a fresh context. Run `/catchup` first.
+
+**Outstanding:**
+1. Session 6b — remaining 58 NEW base_keys (~3 waves, ~7 sub-agents, ~300–400k tokens).
+2. Session 6c — 47 PDF backfills for Session-5 games (description column only; preserve themes/features unless material disagreement → log to `output/backfill_diffs.csv`).
+3. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits this session) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
+4. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.

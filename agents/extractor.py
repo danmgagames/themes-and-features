@@ -45,6 +45,10 @@ def _should_skip_text(text: str) -> bool:
     return any(p.search(text) for p in SKIP_PATTERNS)
 
 
+def _normalize_category(category: str) -> str:
+    return category.upper().replace('&', '_AND_').replace(' ', '_')
+
+
 def _find_game_folders(pptx_root: Path) -> list[dict]:
     """
     Walk pptx_root and find all game folders (matching NNNN_GameName pattern).
@@ -73,6 +77,8 @@ def _find_game_folders(pptx_root: Path) -> list[dict]:
             category = rel.parts[0] if rel.parts else 'UNKNOWN'
         except ValueError:
             category = 'UNKNOWN'
+
+        category = _normalize_category(category)
 
         games.append({
             'folder_path': path,

@@ -64,6 +64,66 @@ def cmd_extract(args):
         print(f"  Errors:              {stats['errors']}")
 
 
+def cmd_extract_pdfs(args):
+    """Phase 1b: Walk FinalesProducto, find description PDFs, extract text."""
+    from agents.pdf_extractor import extract_all_pdfs
+
+    finales_root = Path(args.input).resolve()
+    output_dir = Path(args.output).resolve() if args.output else PROJECT_ROOT / 'data' / 'pdf_extracts'
+    market_path = Path(args.market_names).resolve() if args.market_names else PROJECT_ROOT / 'config' / 'market_names.xlsx'
+    survey_path = Path(args.survey).resolve() if args.survey else PROJECT_ROOT / 'output' / 'pdf_coverage_survey.csv'
+    enriched_path = Path(args.enriched).resolve() if args.enriched else PROJECT_ROOT / 'output' / 'games_enriched.csv'
+
+    if not finales_root.exists():
+        print(f"Error: FinalesProducto folder not found: {finales_root}")
+        sys.exit(1)
+    if not market_path.exists():
+        print(f"Error: market_names.xlsx not found: {market_path}")
+        sys.exit(1)
+
+    # Build the skip-set of base_keys already enriched (themes AND features non-empty)
+    enriched_skip = set()
+    if enriched_path.exists() and not args.overwrite:
+        import csv as _csv
+        with open(enriched_path, 'r', encoding='utf-8-sig') as f:
+            for row in _csv.DictReader(f):
+                themes = (row.get('themes') or '').strip()
+                features = (row.get('features') or '').strip()
+                if themes or features:
+                    bk = (row.get('base_key') or '').strip()
+                    if bk:
+                        enriched_skip.add(bk)
+
+    print(f"Source root:     {finales_root}")
+    print(f"Output dir:      {output_dir}")
+    print(f"Survey CSV:      {survey_path}")
+    print(f"Market DB:       {market_path}")
+    print(f"Skip-enriched:   {len(enriched_skip)} base_keys already enriched")
+    print(f"Overwrite mode:  {args.overwrite}")
+    print()
+
+    stats = extract_all_pdfs(
+        finales_root=finales_root,
+        market_names_path=market_path,
+        output_dir=output_dir,
+        survey_csv_path=survey_path,
+        enriched_skip_set=enriched_skip,
+        overwrite=args.overwrite,
+    )
+
+    print()
+    print("=" * 50)
+    print("PDF extraction complete")
+    print("=" * 50)
+    print(f"  Game folders scanned:        {stats['folders_scanned']}")
+    print(f"  PDFs found:                  {stats['pdfs_found']}")
+    print(f"  Folders unmatched to family: {stats['unmatched_folders']}")
+    print(f"  Unique families with PDF:    {stats['unique_families_with_pdf']}")
+    print(f"  Extracts written:            {stats['extracts_written']}")
+    print(f"  Extracts skipped (existing): {stats['extracts_skipped_existing']}")
+    print(f"  Extraction errors:           {stats['extract_errors']}")
+
+
 def cmd_classify(args):
     """Phase 2: Classify themes and features for all extracted games."""
     import anthropic
@@ -233,12 +293,130 @@ def cmd_classify(args):
     print(f"  Log appended to:    {log_path}")
 
 
+def cmd_localise(args):
+    """Phase 2.5/2.6: Augment classified JSONs with localisation + AM Masterlist data.
+
+    Idempotent. Reads each data/classified/{base_key}.json, optionally reads the
+    matching raw extract for folder context, and writes the augmented JSON back.
+    """
+    from agents.localisation_resolver import (
+        load_market_db, build_game_families, detect_celebrity_ips, match_extract_to_family,
+    )
+    from agents.am_masterlist import load_am_spain, match_classified_to_am
+
+    classified_dir = Path(args.classified).resolve() if args.classified else PROJECT_ROOT / 'data' / 'classified'
+    extracts_dir = Path(args.extracts).resolve() if args.extracts else PROJECT_ROOT / 'data' / 'raw_extracts'
+    market_path = Path(args.market_names).resolve() if args.market_names else PROJECT_ROOT / 'config' / 'market_names.xlsx'
+    am_path = Path(args.am_masterlist).resolve() if args.am_masterlist else PROJECT_ROOT / 'config' / 'AM_Masterlist.xlsx'
+
+    if not classified_dir.exists():
+        print(f"Error: Classified folder not found: {classified_dir}")
+        sys.exit(1)
+
+    print(f"Classified dir:   {classified_dir}")
+    print(f"Extracts dir:     {extracts_dir}")
+    print(f"Market DB:        {market_path}")
+    print(f"AM Masterlist:    {am_path}")
+    print()
+
+    families = {}
+    if market_path.exists():
+        market_rows = load_market_db(market_path)
+        families = build_game_families(market_rows, include_deactivated=args.include_deactivated)
+        detect_celebrity_ips(families)
+        print(f"Game families loaded: {len(families)}")
+    else:
+        print("Market DB not found — skipping localisation")
+
+    am_rows = load_am_spain(am_path)
+    print(f"AM Spain rows:        {len(am_rows)}")
+    print()
+
+    classified_files = sorted(classified_dir.glob('*.json'))
+    print(f"Augmenting {len(classified_files)} classified JSONs...")
+
+    extracts_by_base = {}
+    if extracts_dir.exists():
+        for ef in extracts_dir.glob('*.json'):
+            try:
+                with open(ef, 'r', encoding='utf-8') as fh:
+                    raw = json.load(fh)
+                bk = raw.get('base_key')
+                if bk:
+                    extracts_by_base[bk] = raw
+            except Exception:
+                continue
+
+    loc_stats = {'matched': 0, 'no_match': 0, 'celebrities_added': 0}
+    am_stats = {'exact': 0, 'fuzzy': 0, 'none': 0}
+
+    for cf in classified_files:
+        with open(cf, 'r', encoding='utf-8') as fh:
+            game = json.load(fh)
+
+        bk = game.get('base_key')
+        extract = extracts_by_base.get(bk, {
+            'folder_game_name': game.get('folder_game_name', ''),
+            'folder_category': game.get('folder_category', ''),
+            'market_lookup': {},
+        })
+
+        if families:
+            loc = match_extract_to_family(extract, families)
+            game['es_commercial_name'] = loc.get('es_commercial_name')
+            game['category'] = loc.get('category') or game.get('folder_category', '')
+            game['markets'] = loc.get('markets', [])
+            game['celebrity_names'] = loc.get('celebrity_names', [])
+            game['localisation_match_confidence'] = loc.get('match_confidence', 0.0)
+            game['localisation_match_method'] = loc.get('match_method')
+            if loc.get('match_method') == 'none':
+                loc_stats['no_match'] += 1
+            else:
+                loc_stats['matched'] += 1
+
+            if loc.get('celebrity_names'):
+                themes = game.get('themes', [])
+                if 'Celebrities' not in themes:
+                    themes.append('Celebrities')
+                    loc_stats['celebrities_added'] += 1
+                for name in loc['celebrity_names']:
+                    if name not in themes:
+                        themes.append(name)
+                game['themes'] = themes
+        else:
+            game.setdefault('es_commercial_name', None)
+            game.setdefault('category', game.get('folder_category', ''))
+            game.setdefault('markets', [])
+            game.setdefault('celebrity_names', [])
+            game.setdefault('localisation_match_confidence', 0.0)
+            game.setdefault('localisation_match_method', 'skipped')
+
+        am_match = match_classified_to_am(game, am_rows)
+        game.update(am_match)
+        am_stats[am_match['am_match_method']] = am_stats.get(am_match['am_match_method'], 0) + 1
+
+        with open(cf, 'w', encoding='utf-8') as fh:
+            json.dump(game, fh, indent=2, ensure_ascii=False, default=str)
+
+    print()
+    print("=" * 50)
+    print("Localisation + AM enrichment complete")
+    print("=" * 50)
+    print(f"  Localisation matched:  {loc_stats['matched']}")
+    print(f"  Localisation no match: {loc_stats['no_match']}")
+    print(f"  Celebrity tags added:  {loc_stats['celebrities_added']}")
+    print(f"  AM exact matches:      {am_stats.get('exact', 0)}")
+    print(f"  AM fuzzy matches:      {am_stats.get('fuzzy', 0)}")
+    print(f"  AM no match:           {am_stats.get('none', 0)}")
+
+
 def cmd_consolidate(args):
     """Phase 3: Consolidate classified JSONs into CSVs."""
     from agents.consolidator import consolidate
 
     classified_dir = Path(args.classified).resolve() if args.classified else PROJECT_ROOT / 'data' / 'classified'
     output_dir = Path(args.output).resolve() if args.output else PROJECT_ROOT / 'output'
+    am_path = Path(args.am_masterlist).resolve() if args.am_masterlist else PROJECT_ROOT / 'config' / 'AM_Masterlist.xlsx'
 
     if not classified_dir.exists():
         print(f"Error: Classified folder not found: {classified_dir}")
@@ -246,9 +424,10 @@ def cmd_consolidate(args):
 
     print(f"Consolidating from: {classified_dir}")
     print(f"Output to:          {output_dir}")
+    print(f"AM Masterlist:      {am_path if am_path.exists() else '(not found, gap report skipped)'}")
     print()
 
-    stats = consolidate(classified_dir, output_dir)
+    stats = consolidate(classified_dir, output_dir, am_path if am_path.exists() else None)
 
     print("=" * 50)
     print("Consolidation complete")
@@ -258,11 +437,17 @@ def cmd_consolidate(args):
     print(f"  PPTXs found:         {stats['pptx_found']}")
     print(f"  PPTXs missing:       {stats['pptx_missing']}")
     print(f"  Unknown features:    {stats['unknown_features_count']}")
+    print(f"  PP candidates:       {stats.get('pp_candidates_count', 0)}")
+    print(f"  AM Spain gap rows:   {stats.get('gap_report_count', 0)}")
     print()
     print(f"  Output files:")
     print(f"    {stats['enriched_path']}")
     print(f"    {stats['review_path']}")
     print(f"    {stats['report_path']}")
+    if stats.get('pp_candidate_path'):
+        print(f"    {stats['pp_candidate_path']}")
+    if stats.get('gap_report_path'):
+        print(f"    {stats['gap_report_path']}")
 
 
 def cmd_merge_review(args):
@@ -418,6 +603,16 @@ def main():
     p_extract.add_argument('--market-names', '-m', default=None, help='Path to market_names.xlsx (default: config/market_names.xlsx)')
     p_extract.set_defaults(func=cmd_extract)
 
+    # extract-pdfs
+    p_extract_pdfs = subparsers.add_parser('extract-pdfs', help='Phase 1b: Walk FinalesProducto and extract description PDFs')
+    p_extract_pdfs.add_argument('--input', '-i', default=r'X:\DivisionOnline\FinalesProducto', help='Path to FinalesProducto root')
+    p_extract_pdfs.add_argument('--output', '-o', default=None, help='Output dir (default: data/pdf_extracts)')
+    p_extract_pdfs.add_argument('--market-names', '-m', default=None, help='Path to market_names.xlsx (default: config/market_names.xlsx)')
+    p_extract_pdfs.add_argument('--survey', '-s', default=None, help='Coverage survey CSV path (default: output/pdf_coverage_survey.csv)')
+    p_extract_pdfs.add_argument('--enriched', '-e', default=None, help='Path to games_enriched.csv for skip-set (default: output/games_enriched.csv)')
+    p_extract_pdfs.add_argument('--overwrite', action='store_true', help='Re-extract even if PDF JSON already exists and base_key is enriched')
+    p_extract_pdfs.set_defaults(func=cmd_extract_pdfs)
+
     # classify
     p_classify = subparsers.add_parser('classify', help='Phase 2: Classify themes and features')
     p_classify.add_argument('--extracts', '-e', default=None, help='Path to raw extracts dir (default: data/raw_extracts)')
@@ -427,10 +622,20 @@ def main():
     p_classify.add_argument('--include-deactivated', action='store_true', help='Include deactivated games')
     p_classify.set_defaults(func=cmd_classify)
 
+    # localise
+    p_localise = subparsers.add_parser('localise', help='Phase 2.5/2.6: Augment classified JSONs with localisation + AM Masterlist data')
+    p_localise.add_argument('--classified', '-c', default=None, help='Path to classified dir (default: data/classified)')
+    p_localise.add_argument('--extracts', '-e', default=None, help='Path to raw extracts dir (default: data/raw_extracts)')
+    p_localise.add_argument('--market-names', '-m', default=None, help='Path to market_names.xlsx (default: config/market_names.xlsx)')
+    p_localise.add_argument('--am-masterlist', '-a', default=None, help='Path to AM_Masterlist.xlsx (default: config/AM_Masterlist.xlsx)')
+    p_localise.add_argument('--include-deactivated', action='store_true', help='Include deactivated games')
+    p_localise.set_defaults(func=cmd_localise)
+
     # consolidate
     p_consolidate = subparsers.add_parser('consolidate', help='Phase 3: Consolidate classified data and output CSVs')
     p_consolidate.add_argument('--classified', '-c', default=None, help='Path to classified dir (default: data/classified)')
     p_consolidate.add_argument('--output', '-o', default=None, help='Output dir (default: output)')
+    p_consolidate.add_argument('--am-masterlist', '-a', default=None, help='Path to AM_Masterlist.xlsx (default: config/AM_Masterlist.xlsx)')
     p_consolidate.set_defaults(func=cmd_consolidate)
 
     # merge-review
