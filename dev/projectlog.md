@@ -16,6 +16,7 @@ output an enriched CSV for casino site SEO.
 | Session 4 — Human review merge + report (Feature) | ~40,000 | 778,000 |
 | Session 5 — Re-run + AM_Masterlist join + PP taxonomy parity | ~450,000 | 1,228,000 |
 | Session 6a — PDF enrichment (80 games) + PP candidate side-channel | ~480,000 | 1,708,000 |
+| Session 6b — PDF enrichment SLOTS3 tail (54 games) | ~340,000 | 2,048,000 |
 
 **Category split for Session 6a:** Feature 95% (PDF pipeline + PP side-channel + new market xlsx column), Bug fix 5% (per-market commercial-name lookup that fixed 85 unmatched folders). No Rework, no Cleanup.
 
@@ -270,13 +271,39 @@ output an enriched CSV for casino site SEO.
 
 ---
 
+### Session 6b — PDF enrichment SLOTS3 tail (Claude Code)
+**Date:** 2026-04-28
+**Status:** Complete. Run back-to-back with 6a (user opted in despite token-budget warning).
+**Token category:** Feature 100%
+
+**What was done:**
+- Built `dev/session6b_batches.py` (clone of 6a builder, dedup-aware against existing classified set).
+- Reused `dev/_session6a_batches/PROMPT_TEMPLATE.md` verbatim — only batch path changed.
+- 54 NEW base_keys (50 SLOTS3 + 4 BINGO) → 7 batches → 3 waves (3-3-1).
+- Validation: all 7 checks pass for 138 PDF-sourced JSONs.
+- 0 PP candidate hits this session (total still 4, all from 6a). Confirms SLOTS3/BINGO PDFs typically don't describe the 4 sanctioned PP mechanics.
+- Coverage: 228 → 278 enriched market rows (+50). SPAIN +44 (SLOTS3 is Spain-dominant); other markets +0–3.
+- AM Spain gap: 152 → 110 rows (down 42).
+
+**Files created/modified:**
+- `dev/session6b_batches.py` (NEW)
+- `dev/ref/stage6b-summary.md` (NEW)
+- `data/classified/*.json` (54 new this session, 200 total)
+- All `output/*.csv` and `output/themes_features_by_market.xlsx` refreshed
+- `dev/projectlog.md` updated
+
+**Note:** No code changes to the pipeline this session — pure classification work using infrastructure built in 6a.
+
+---
+
 ## Current status
-**Phase:** Session 6a complete. 84 of 138 NEW base_keys classified from PDFs; 58 NEW + 47 backfill remain.
-**Blocker:** None. User should close Excel and rename `themes_features_by_market.LATEST.xlsx` over the original.
-**Next action:** Session 6b — classify the remaining ~58 NEW base_keys (mostly SLOTS3) in a fresh context. Run `/catchup` first.
+**Phase:** Sessions 6a + 6b complete. 138 of 138 NEW base_keys classified from PDFs. Only the 47 PDF backfills for Session-5-classified games remain (Session 6c, Description column only).
+**Blocker:** None.
+**Next action:** Session 6c — 47 PDF backfills. Run `/catchup` first if context cleared.
 
 **Outstanding:**
-1. Session 6b — remaining 58 NEW base_keys (~3 waves, ~7 sub-agents, ~300–400k tokens).
-2. Session 6c — 47 PDF backfills for Session-5 games (description column only; preserve themes/features unless material disagreement → log to `output/backfill_diffs.csv`).
-3. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits this session) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
-4. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.
+1. Session 6c — 47 PDF backfills for Session-5 games (description column only; preserve themes/features unless material disagreement → log to `output/backfill_diffs.csv`). ~6 sub-agents in 2 waves, ~250k tokens.
+2. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
+3. Optional: refactor `main.py` (now 673 lines) — split each `cmd_*` into `agents/cli/<command>.py`.
+4. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 52/200 (same SPAIN/.COM cname masking quirk that pdf_extractor sidesteps). Cross-market deliverable still works via the AM-direct path, so this is cosmetic.
+5. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.

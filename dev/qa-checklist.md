@@ -108,5 +108,23 @@
 - [ ] Re-run `python dev/validate_session6a.py` after any manual touchups to confirm clean state
 
 ### Pending tracker
-- [ ] Investigate `localisation_resolver.match_extract_to_family` no-match for 51/146 (SPAIN/.COM cname masking quirk). Decide: (a) fix in Session 6b by adding the same per-market lookup the PDF extractor uses, or (b) leave alone since cross-market deliverable still works.
+- [ ] Investigate `localisation_resolver.match_extract_to_family` no-match for 52/200 (SPAIN/.COM cname masking quirk). Decide: (a) fix by adding the same per-market lookup the PDF extractor uses, or (b) leave alone since cross-market deliverable still works.
 - [ ] Once Product greenlights any of the 4 PP candidate mechanics → bump taxonomy to v2.4, dispatch a tiny re-classification wave for just the 4 affected games (Diamond Mine, Explosive Bandit 2, Explosive Wizard Cat, Dragons Double Pot).
+
+## Session 6b — PDF enrichment SLOTS3 tail
+
+### Sub-agent classification (54 new games — 50 SLOTS3 + 4 BINGO)
+- [ ] Spot-check 5 random `data/classified/S3*.json` and `BingoGeneralCounters*.json` (newest mtime) — themes/features plausible, description verbatim or cleanly translated
+- [ ] Confirm at least one Spanish-source SLOTS3 game has a faithful English translation in its description (e.g. `S3AndyLucasCountersGlobal` was flagged `pdf_lang=ES`)
+- [ ] Verify celebrity-named SLOTS3 games (Andy & Lucas, Aramis Fuster, Pocholo, Yola Berrocal, Cecilia, Maria La Piedra, Ismael Beiro, Eugenio, Dioni, Flash Gordon) have `Celebrities` + the person's name as themes
+- [ ] Verify all 50 SLOTS3 games show `Mini-Games`, `Bonos Superiores`, `Dual-Screen Layout` in `output/games_enriched.csv` after consolidate (auto-injected by `normalize_features`)
+
+### Validation gate
+- [x] Re-run `python dev/validate_session6a.py` — all 7 checks passed for 138 PDF-sourced JSONs
+
+### Cross-market deliverable
+- [ ] Open `output/themes_features_by_market.xlsx` SPAIN sheet — 127 of 232 rows now enriched (54.7% coverage, up from 35.8%)
+- [ ] Confirm none of the 50 SLOTS3 games regressed (compare against pre-6b state if needed)
+
+### PP candidates (no new hits expected from SLOTS3/BINGO)
+- [x] Confirmed: 0 new PP candidates from 6b. Total side-channel still 4 hits, all from 6a.
