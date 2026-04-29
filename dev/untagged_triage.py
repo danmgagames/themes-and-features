@@ -36,8 +36,8 @@ WEB_EXTRACTS    = PROJECT_ROOT / 'data' / 'web_extracts'
 OUTPUT_PATH     = PROJECT_ROOT / 'output' / 'untagged_triage.csv'
 
 MARKETS = ['SPAIN', 'PORTUGAL', '.COM', 'NETHERLANDS', 'ITALY', 'COLOMBIA']
-WITHIN_MARKET_METHODS = {'mn_exact', 'mn_fuzzy'}
-CROSS_MARKET_METHODS = {'mn_exact_xmarket', 'mn_fuzzy_xmarket'}
+WITHIN_MARKET_METHODS = {'mn_exact', 'mn_fuzzy', 'mn_loose'}
+CROSS_MARKET_METHODS = {'mn_exact_xmarket', 'mn_fuzzy_xmarket', 'mn_loose_xmarket'}
 
 
 def load_enriched() -> dict:

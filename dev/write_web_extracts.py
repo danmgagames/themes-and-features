@@ -27,7 +27,9 @@ MN_PATH = PROJECT_ROOT / 'config' / 'market_names.xlsx'
 
 METHOD_RANK = {
     'mn_exact': 0, 'mn_fuzzy': 1,
-    'mn_exact_xmarket': 2, 'mn_fuzzy_xmarket': 3, 'none': 9,
+    'mn_exact_xmarket': 2, 'mn_fuzzy_xmarket': 3,
+    'mn_loose': 4, 'mn_loose_xmarket': 5,
+    'none': 9,
 }
 MARKET_RANK = {
     'SPAIN': 0, 'PORTUGAL': 1, '.COM': 2,

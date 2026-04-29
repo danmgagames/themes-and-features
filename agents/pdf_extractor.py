@@ -33,6 +33,11 @@ from agents.localisation_resolver import (
 SUFFIX_PATTERN = re.compile(r'(NoIp|Es|Pt|It|Co|Nl|Ca|Se)$', re.IGNORECASE)
 PER_MARKET_FUZZY_THRESHOLD = 88
 
+# Tokens that AM Masterlist GameNames append/prepend but market_names omits
+# (or vice versa). Used by the loose-match fallback. Edge tokens only — never
+# strip from the middle of a name. RF prefix is the "Rey de la Fiesta" tag.
+GENERIC_EDGE_TOKENS = {'bingo', 'megaways', 'plus', 'deluxe', 'rf'}
+
 
 def _norm(s) -> str:
     if s is None:
@@ -40,6 +45,22 @@ def _norm(s) -> str:
     s = str(s).strip().lower()
     s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
     return ' '.join(s.split())
+
+
+def _norm_loose(n: str) -> str:
+    """Strip leading/trailing generic edge tokens AND inner whitespace from
+    an already-_norm'd string. Used for the bridge fallback that catches AM
+    GameNames like "Carnaval Bingo" matching market_names "Carnaval", or
+    "Mr Magnifico" matching "MrMagnifico". Returns '' if everything was
+    generic (don't match on empty)."""
+    if not n:
+        return ''
+    toks = n.split()
+    while toks and toks[0] in GENERIC_EDGE_TOKENS:
+        toks = toks[1:]
+    while toks and toks[-1] in GENERIC_EDGE_TOKENS:
+        toks = toks[:-1]
+    return ''.join(toks)
 
 
 def _build_commercial_lookup(market_names_path: Path) -> tuple[dict, dict]:
@@ -114,7 +135,7 @@ def _resolve_base_key_per_market(
         if nn == n:
             return bk, 0.95, 'mn_exact_xmarket'
 
-    # 4. Cross-market fuzzy — last resort, only if very strong (>=92)
+    # 4. Cross-market fuzzy — only if very strong (>=92)
     all_pairs = []
     for m, lst in by_market.items():
         all_pairs.extend(lst)
@@ -123,6 +144,20 @@ def _resolve_base_key_per_market(
         res = process.extractOne(n, names, scorer=fuzz.token_sort_ratio)
         if res and res[1] >= 92:
             return all_pairs[res[2]][1], res[1] / 100.0, 'mn_fuzzy_xmarket'
+
+    # 5. Within-market loose: strip generic edge tokens + inner whitespace.
+    #    Catches "Carnaval Bingo" (AM) ↔ "Carnaval" (MN) and "Mr Magnifico"
+    #    (AM) ↔ "MrMagnifico" (MN). Only fires when stricter steps failed.
+    n_loose = _norm_loose(n)
+    if n_loose:
+        for cn_norm, bk in candidates:
+            if _norm_loose(cn_norm) == n_loose:
+                return bk, 0.85, 'mn_loose'
+
+        # 6. Cross-market loose
+        for cn_norm, bk in all_pairs:
+            if _norm_loose(cn_norm) == n_loose:
+                return bk, 0.80, 'mn_loose_xmarket'
 
     return None, 0.0, 'none'
 

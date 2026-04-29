@@ -29,6 +29,7 @@ CORRECTIONS_PATH = PROJECT_ROOT / 'output' / 'celebrity_corrections.csv'
 SUFFIX_PATTERN = re.compile(r'(NoIp|Es|Pt|It|Co|Nl|Ca|Se)$', re.IGNORECASE)
 FUZZY_THRESHOLD = 88
 XMARKET_FUZZY_THRESHOLD = 92
+GENERIC_EDGE_TOKENS = {'bingo', 'megaways', 'plus', 'deluxe', 'rf'}
 CELEBRITIES_UMBRELLA = 'Celebrities'
 _CONJUNCTION_RE = re.compile(r'\s*(?:&|\band\b|\by\b|\be\b)\s*')
 
@@ -47,6 +48,20 @@ def norm_match(s) -> str:
     all converge for substring matching."""
     n = norm(s)
     return _CONJUNCTION_RE.sub(' & ', n).strip()
+
+
+def norm_loose(n: str) -> str:
+    """Strip leading/trailing generic edge tokens and inner whitespace from
+    an already-norm'd string. Bridges 'Carnaval Bingo' (AM) ↔ 'Carnaval' (MN)
+    and 'Mr Magnifico' ↔ 'MrMagnifico'. Returns '' if everything stripped."""
+    if not n:
+        return ''
+    toks = n.split()
+    while toks and toks[0] in GENERIC_EDGE_TOKENS:
+        toks = toks[1:]
+    while toks and toks[-1] in GENERIC_EDGE_TOKENS:
+        toks = toks[:-1]
+    return ''.join(toks)
 
 
 def load_taxonomy_themes() -> set[str]:
@@ -206,6 +221,15 @@ def find_base_key(am_name: str, market: str, mn_lookup: dict, mn_market_norms: d
         res = process.extractOne(n, names, scorer=fuzz.token_sort_ratio)
         if res and res[1] >= XMARKET_FUZZY_THRESHOLD:
             return all_pairs[res[2]][1]
+
+    n_loose = norm_loose(n)
+    if n_loose:
+        for cn_norm, bk in candidates:
+            if norm_loose(cn_norm) == n_loose:
+                return bk
+        for cn_norm, bk in all_pairs:
+            if norm_loose(cn_norm) == n_loose:
+                return bk
 
     return None
 
