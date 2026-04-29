@@ -28,6 +28,7 @@ CORRECTIONS_PATH = PROJECT_ROOT / 'output' / 'celebrity_corrections.csv'
 
 SUFFIX_PATTERN = re.compile(r'(NoIp|Es|Pt|It|Co|Nl|Ca|Se)$', re.IGNORECASE)
 FUZZY_THRESHOLD = 88
+XMARKET_FUZZY_THRESHOLD = 92
 CELEBRITIES_UMBRELLA = 'Celebrities'
 _CONJUNCTION_RE = re.compile(r'\s*(?:&|\band\b|\by\b|\be\b)\s*')
 
@@ -169,21 +170,43 @@ def load_enriched() -> dict:
 
 
 def find_base_key(am_name: str, market: str, mn_lookup: dict, mn_market_norms: dict) -> str | None:
-    """Match AM GameName → mn base_key for the given market."""
+    """Match AM GameName → mn base_key for the given market.
+
+    Tries within-market exact, within-market fuzzy ≥88, then falls back to
+    cross-market exact and cross-market fuzzy ≥92. The cross-market fallbacks
+    let an AM row inherit a base_key from another market's commercial-name
+    listing — useful when a game is sold under the same English title across
+    .COM/PORTUGAL/etc but only one market has the entry in market_names.xlsx.
+    """
     n = norm(am_name)
     if not n:
         return None
-    bk = mn_lookup.get((market.upper(), n))
+    market_upper = market.upper()
+
+    bk = mn_lookup.get((market_upper, n))
     if bk:
         return bk
 
-    candidates = mn_market_norms.get(market.upper(), [])
-    if not candidates:
-        return None
-    norms_list = [c[0] for c in candidates]
-    res = process.extractOne(n, norms_list, scorer=fuzz.token_sort_ratio)
-    if res and res[1] >= FUZZY_THRESHOLD:
-        return candidates[res[2]][1]
+    candidates = mn_market_norms.get(market_upper, [])
+    if candidates:
+        norms_list = [c[0] for c in candidates]
+        res = process.extractOne(n, norms_list, scorer=fuzz.token_sort_ratio)
+        if res and res[1] >= FUZZY_THRESHOLD:
+            return candidates[res[2]][1]
+
+    for (m, nn), bk in mn_lookup.items():
+        if nn == n:
+            return bk
+
+    all_pairs = []
+    for lst in mn_market_norms.values():
+        all_pairs.extend(lst)
+    if all_pairs:
+        names = [p[0] for p in all_pairs]
+        res = process.extractOne(n, names, scorer=fuzz.token_sort_ratio)
+        if res and res[1] >= XMARKET_FUZZY_THRESHOLD:
+            return all_pairs[res[2]][1]
+
     return None
 
 

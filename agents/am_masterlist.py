@@ -44,23 +44,24 @@ def _fmt_date(v) -> str:
     return str(v) if v is not None else ''
 
 
-def load_am_spain(am_path: Path) -> list[dict]:
-    """Load the SPAIN sheet from AM_Masterlist.xlsx into row dicts.
+def load_am_market(am_path: Path, sheet_name: str) -> list[dict]:
+    """Load a market sheet from AM_Masterlist.xlsx into row dicts.
 
     The first column header has a newline in it ('Updated DD/MM/YYYY\\nGameName')
-    so we coerce it to 'GameName' for ergonomic access.
+    so we coerce it to 'GameName' for ergonomic access. All 6 market sheets
+    follow this convention.
     """
     if not am_path.exists():
         logger.warning(f"AM_Masterlist not found at {am_path}")
         return []
 
     wb = openpyxl.load_workbook(str(am_path), read_only=True, data_only=True)
-    if 'SPAIN' not in wb.sheetnames:
-        logger.warning(f"AM_Masterlist has no SPAIN sheet")
+    if sheet_name not in wb.sheetnames:
+        logger.warning(f"AM_Masterlist has no {sheet_name} sheet")
         wb.close()
         return []
 
-    ws = wb['SPAIN']
+    ws = wb[sheet_name]
     raw_rows = list(ws.iter_rows(values_only=True))
     wb.close()
 
@@ -85,6 +86,10 @@ def load_am_spain(am_path: Path) -> list[dict]:
         rows_with_norm.append(row)
 
     return rows_with_norm
+
+
+def load_am_spain(am_path: Path) -> list[dict]:
+    return load_am_market(am_path, 'SPAIN')
 
 
 def _row_to_am_dict(row: dict, method: str) -> dict:

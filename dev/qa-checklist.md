@@ -184,3 +184,40 @@
 - [x] `output/games_enriched.csv` mtime unchanged — consolidator was not re-run
 - [ ] Re-run `python dev/validate_session6a.py` — still passes (classified JSONs untouched)
 - [ ] Per-sheet enrichment Coverage % matches pre-6d (no row drops)
+
+## Session 7 — Untagged-games triage + mga.games scrape
+
+### Triage diagnostic
+- [x] `python dev/untagged_triage.py` runs clean; bucket totals sum to per-market untagged xlsx counts
+- [x] Bucket totals before scrape: A=63, B=143, C=0, total 206 (after cross-market fix: 225 → 206)
+- [x] Bucket totals after scrape + web_extracts: A=63, B=30, C=113, total 206
+- [ ] Spot-check 5 rows by hand (one per bucket where non-empty) — confirm bucket assignment matches the actual chain (market_names → base_key → enriched → source files)
+
+### Cross-market fallback in find_base_key
+- [x] `python generate_market_xlsx.py` — coverage rises by exactly 19 (PORTUGAL +6, .COM +9, NL +1, COLOMBIA +3)
+- [ ] Spot-check 3 of the 19 newly-tagged rows in xlsx — themes/features actually populated
+- [ ] Verify SPAIN unchanged (had 0 D rows; should have 0 new tags from the fix)
+
+### mga.games scraper
+- [x] `python dev/scrape_mga.py` enumerates all 6 markets correctly: SPAIN 212, PORTUGAL 55, COLOMBIA 34, ITALY 26, NETHERLANDS 23, .COM 103
+- [x] 344/344 unique slugs have non-empty descriptions
+- [x] 154/212 SPAIN games have `tipo`; 149/212 have `volatilidad` (non-uniform RESUMEN format on older/videobingo pages)
+- [ ] Idempotence: rerun the scrape — Phase B should re-fetch 0 pages (all cached in `dev/_scrape/games/`)
+- [ ] Spot-check one cached HTML file directly — page is fully rendered, not just the SPA shell
+- [ ] User-Agent identifies the bot (`mga-themes-features-bot/1.0 (dnugent@mga.es ...)`) — confirm via grep on dev/_scrape/games/*.html if needed
+
+### Slug → base_key match
+- [x] 307/344 unique slugs (89%) resolve to a base_key
+- [x] 40 unmatched slugs all align with Bucket A (no `market_names.xlsx` entry) — sanity-checked with `Arabian Bingo`, `Sweet Home Bingo`, `Nacho Vidal Megaways`
+- [ ] Spot-check a `mn_fuzzy_xmarket` resolution — confirm displayed_name and matched commercial_name are genuinely the same game
+
+### Web extracts
+- [x] 240 `data/web_extracts/<base_key>.json` files written
+- [x] Each web_extract has non-empty `raw_text` (description + RESUMEN block)
+- [x] 113 of these correspond to currently-untagged AM rows (Bucket B → Bucket C transition)
+- [ ] Open one web_extract JSON — confirm schema parity with `data/pdf_extracts/` (`base_key`, `raw_text`, `web_url`, `web_source_language='ES'`, `market_lookup` populated)
+
+### Module load test
+- [x] `from agents.am_masterlist import load_am_market` works for all 6 sheets
+- [x] `load_am_spain` (legacy wrapper) still callable and returns identical rows to `load_am_market(p, 'SPAIN')`
+- [ ] Re-run `python main.py consolidate ...` — confirm no breakage from the am_masterlist refactor

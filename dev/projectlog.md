@@ -19,6 +19,7 @@ output an enriched CSV for casino site SEO.
 | Session 6b — PDF enrichment SLOTS3 tail (54 games) | ~340,000 | 2,048,000 |
 | Session 6c — PDF Description backfill (47 Session-5 games) | ~300,000 | 2,348,000 |
 | Session 6d — Per-market celebrity-name validation (xlsx-only) | ~50,000 | 2,398,000 |
+| Session 7 — Untagged-games triage + mga.games scrape + web_extracts | ~220,000 | 2,618,000 |
 
 **Category split for Session 6a:** Feature 95% (PDF pipeline + PP side-channel + new market xlsx column), Bug fix 5% (per-market commercial-name lookup that fixed 85 unmatched folders). No Rework, no Cleanup.
 
@@ -28,6 +29,8 @@ output an enriched CSV for casino site SEO.
 
 **Category split for Session 6d:** Bug fix 100% (per-market celebrity validation in `generate_market_xlsx.py`). No Feature, Rework, or Cleanup.
 
+**Category split for Session 7:** Feature 95% (untagged-games triage + mga.games Playwright scraper + 240 web_extract JSONs in pipeline format), Bug fix 5% (cross-market fallback added to `generate_market_xlsx.find_base_key`, recovering 19 already-enriched-but-blank xlsx rows). No Rework, no Cleanup.
+
 **Budget status:** No `dev/ref/budget.md` exists (also flagged in 6a/6b notes) — no per-session budget defined to compare against. 6c estimated ~250k, actual ~300k (+20%) — within margin given the unplanned merge/diff infrastructure work. Cumulative project tokens: ~2.35M.
 
 **Context limits / splitting:** 6c did NOT hit context limits. No splitting needed. `main.py` remains at **673 lines** (>500-line threshold flagged since 6a — split discussion still pending; suggested seam: each `cmd_*` → `agents/cli/<command>.py`). All other modules under 500.
@@ -35,6 +38,10 @@ output an enriched CSV for casino site SEO.
 **Budget status (6d):** No `dev/ref/budget.md` exists (flagged since 6a). 6d ran in ~50k tokens — well within any reasonable Bug-fix budget. Cumulative project tokens: ~2.40M.
 
 **Context limits / splitting (6d):** No context-limit issues. `main.py` still 673 lines; `generate_market_xlsx.py` grew 192 → 318 lines, comfortably under 500. No other files crossed thresholds.
+
+**Budget status (Session 7):** No `dev/ref/budget.md` exists (flagged since 6a). 7 ran in ~220k tokens — comparable to 6c (300k). No prior estimate to compare against. Cumulative project tokens: ~2.62M. Sub-agent classification of the 113 web_extracts is deferred to Session 7b — estimated ~300–400k.
+
+**Context limits / splitting (Session 7):** No context-limit issues. `main.py` still 673 lines (unchanged this session). `generate_market_xlsx.py` grew 318 → 341 (added cross-market fallback). All `dev/scrape_*` and `dev/match_*` scripts under 400 lines. No new files crossed 500-line threshold.
 
 **Budget status:** No `dev/ref/budget.md` exists yet — no per-session budget to compare against. Session 6a's 480k tokens used ~60% of the user's current 5-hour Max-plan window. Estimated 6b would push cumulative to ~105% if run back-to-back; **plan is to wait for window reset before 6b** (or split 6b into two sub-sessions).
 
@@ -383,16 +390,62 @@ Total enriched market rows unchanged at 278 — 6c only added Description to exi
 
 ---
 
+### Session 7 — Untagged-games triage + mga.games Playwright scrape (Claude Code)
+**Date:** 2026-04-29
+**Status:** Complete. 240 web_extract JSONs in repo; classification deferred to Session 7b per plan.
+**Token category:** Feature 95% / Bug fix 5%
+
+**What was done:**
+- Built `dev/untagged_triage.py` — read-only diagnostic CSV across all 6 AM markets, classifying every untagged row into Bucket A (no market_names entry), B (no source anywhere), C (PPTX/PDF/WEB exists but not enriched), or E (EXTERNAL). Reuses `_resolve_base_key_per_market` so the matcher mirrors what `generate_market_xlsx.find_base_key` does. Initial run: A=111, B=95, D=19, total 225.
+- Generalised `agents/am_masterlist.py::load_am_spain` → new `load_am_market(path, sheet_name)`; old function preserved as a thin wrapper for `consolidator.py`.
+- **Quick fix:** added cross-market fallback (`mn_exact_xmarket` + `mn_fuzzy_xmarket ≥92`) to `generate_market_xlsx.find_base_key`. Per-market xlsx coverage rose by exactly 19 rows (PORTUGAL +6, .COM +9, NL +1, COLOMBIA +3) — the original Bucket D becomes empty. Triage rerun: A=63, B=143, C=0, total 206.
+- **mga.games scrape via Playwright** (public site is an Angular SPA — Vercel-hosted). Three iterations: (a) home modal works for SPAIN, (b) market chooser doesn't reappear after first selection, (c) clearing cookies + localStorage between markets forces modal each time → 6/6 markets enumerated correctly (212/55/103/26/23/34, 344 unique slugs, 453 (market, slug) tuples). Per-game pages cached idempotently in `dev/_scrape/games/<slug>.html` + `.json`.
+- `dev/match_slugs.py` — joins scrape against `market_names.xlsx` via `_resolve_base_key_per_market`. 307/344 unique slugs (89%) resolve to a base_key; 40 unmatched slugs (Arabian Bingo, Carnaval Bingo, Sweet Home Bingo, Nacho Vidal Megaways, …) align with Bucket A — present on the public site but missing from market_names.xlsx.
+- `dev/write_web_extracts.py` — emits 240 `data/web_extracts/<base_key>.json` files with the same shape as `data/pdf_extracts/`. raw_text combines the Spanish description + structured RESUMEN block (tipo / apuesta / volatilidad / premio_max).
+- `dev/untagged_triage.py` extended with WEB coverage probe.
+- Added Playwright (1.59.0) to the local Python env + chromium-headless-shell (~110MB binary) — not yet committed to `requirements.txt` since it's a recon tool, not pipeline-critical.
+
+**Triage delta** (before → after scrape + web_extracts):
+| Bucket | Before | After | Δ |
+|---|---:|---:|---:|
+| A no market_names entry | 63 | 63 | 0 |
+| B no source anywhere | 143 | **30** | **−113** |
+| C source exists, ready to classify | 0 | **113** | **+113** |
+| **Total untagged** | 206 | 206 | 0 |
+
+**Files created/modified:**
+- `agents/am_masterlist.py` — `load_am_market` (3 lines) + `load_am_spain` wrapper
+- `generate_market_xlsx.py` — cross-market fallback in `find_base_key` (+18 lines)
+- `dev/untagged_triage.py` (NEW, 316 lines)
+- `dev/match_slugs.py` (NEW, 186 lines)
+- `dev/scrape_mga.py` (NEW, 355 lines)
+- `dev/scrape_mga_recon.py` (NEW, 183 lines — recon, can be deleted post-session)
+- `dev/write_web_extracts.py` (NEW, 153 lines)
+- `data/web_extracts/*.json` (NEW — 240 files, gitignored)
+- `output/untagged_triage.csv` (NEW, gitignored — 206 untagged rows classified A/B/C/E)
+- `dev/_scrape/{catalog.csv, games.csv, slug_to_base_key.csv, scrape_coverage.csv}` (NEW, gitignored)
+- `dev/_scrape/games/*.{html,json}` (NEW — 344 games × 2, gitignored)
+- `output/themes_features_by_market.xlsx` (refreshed — 19 D rows tagged)
+- `.gitignore` — added `data/web_extracts/`, `data/classified_7/`, `dev/_recon/`, `dev/_scrape/games/`, `dev/_scrape/scrape.log`
+
+**Risks / notes:**
+- 30 Bucket B rows still untagged — games not on public mga.games (likely retired/regional-only).
+- 63 Bucket A rows still untagged — no `market_names.xlsx` entry. Of these ~40 ARE on mga.games and we have the descriptions cached; could be filled in a separate session by adding new market_names rows or accepting slug as a pseudo base_key.
+- `requirements.txt` not yet bumped to include Playwright. If a future session needs to rerun the scrape, install via `pip install playwright && python -m playwright install chromium`.
+
+---
+
 ## Current status
-**Phase:** Phase 6 + 6d (per-market celebrity validation) complete. 185 PDF-sourced classified JSONs and the per-market xlsx now correct on celebrity attribution. Coverage in `themes_features_by_market.xlsx`: SPAIN 127/232, PORTUGAL 45/67, .COM 60/120, NETHERLANDS 15/23, ITALY 23/27, COLOMBIA 8/34.
-**Blocker:** None for the next step. Product review still pending on `pp_mechanic_candidates.csv`, `missing_mechanics_review.xlsx`, `backfill_diffs.csv`.
-**Next action:** Address the **untagged games** — AM market rows that currently have no themes/features. The biggest gaps are the 105 SPAIN AM rows without enrichment (`output/am_spain_gap_report.csv`) and 60 .COM, 50 PORTUGAL, etc. across the other sheets. Likely root causes: (a) no PPTX or PDF was found, (b) base_key match did not resolve via market_names.xlsx, (c) games are EXTERNAL/IP titles outside the MGA-developed catalogue. Approach to discuss next session: triage the gap reports, identify which classes of game are truly missing source material vs. just unmatched, and decide whether a fallback enrichment path is needed (e.g. AM-only metadata, or a thinner classification pass driven by GameName/Category alone).
+**Phase:** Phase 7 in flight — diagnostic triage built, mga.games web scrape complete, 240 web_extract JSONs in repo (`data/web_extracts/`, gitignored). Per-market xlsx coverage after the cross-market fallback fix: SPAIN 127/232, PORTUGAL 51/67, .COM 69/120, NETHERLANDS 16/23, ITALY 23/27, COLOMBIA 11/34. Untagged total down 225 → 206; of those 113 are now Bucket C (web source available, classification pending), 30 are Bucket B (no source anywhere), 63 are Bucket A (no market_names entry).
+**Blocker:** None. Product reviews still pending on `pp_mechanic_candidates.csv`, `missing_mechanics_review.xlsx`, `backfill_diffs.csv`, `celebrity_corrections.csv`.
+**Next action (Session 7b):** Sub-agent classification of the 113 Bucket C web_extracts using the same batch pattern as 6a/6b/6c. Produce `data/classified_7/<base_key>.json` (then merge into `data/classified/`), refresh consolidate + market xlsx, expect SPAIN xlsx coverage to rise by ~63 rows (the SPAIN slice of Bucket C), .COM by ~24, etc. Estimated ~300–400k tokens (12 batches of ~10).
 
 **Outstanding (in priority order):**
-1. **Address untagged games** — triage AM gap rows and design an enrichment path for the still-untagged catalogue (next session focus).
-2. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
-3. Product team to review `output/backfill_diffs.csv` (34 rows) — decide whether any of the Session 5 vs. 6c disagreements warrant overriding Session 5's authoritative tags.
-4. Product team to review `output/celebrity_corrections.csv` (60 rows) — confirm strict-full-name policy is right; the 6× Chiquito SPAIN rows that lost `Chiquito de la Calzada` are intentional but flag-able.
-5. Optional: refactor `main.py` (now 673 lines) — split each `cmd_*` into `agents/cli/<command>.py`.
-6. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 52/200 (same SPAIN/.COM cname masking quirk that pdf_extractor sidesteps). Cosmetic.
-7. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.
+1. **Session 7b — classify the 113 web_extracts** (next action).
+2. **Address Bucket A (63 rows)** — ~40 of these have a public mga.games page already cached. Decide whether to (a) add `market_names.xlsx` rows so the existing pipeline can pick them up, or (b) accept slug as a synthetic base_key. Defer until 7b done so we can see real coverage.
+3. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
+4. Product team to review `output/backfill_diffs.csv` (34 rows) — decide whether any Session 5 vs. 6c disagreements warrant overriding Session 5's authoritative tags.
+5. Product team to review `output/celebrity_corrections.csv` (60 rows) — confirm strict-full-name policy is right.
+6. Optional: refactor `main.py` (still 673 lines) — split each `cmd_*` into `agents/cli/<command>.py`.
+7. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 52/200 (same SPAIN/.COM cname masking quirk).
+8. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.

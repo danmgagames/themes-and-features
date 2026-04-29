@@ -1,4 +1,5 @@
 POWERPOINTS/
+data/01_Definicion Productos/
 dev/SessionPrompts/
 dev/_session6a_batches/batch_*.json
 dev/_session6b_batches/
@@ -6,9 +7,14 @@ dev/_session6c_batches/
 data/raw_extracts/
 data/classified/
 data/classified_6c/
+data/classified_7/
 data/pdf_extracts/
+data/web_extracts/
+data/*.xlsx
 data/classifier_log.jsonl
 output/
+dev/_recon/
+dev/_scrape/
 .env
 __pycache__/
 *.pyc
