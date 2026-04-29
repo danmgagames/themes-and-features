@@ -6,11 +6,14 @@ dev/_session6b_batches/
 dev/_session6c_batches/
 dev/_session7b_batches/batch_*.json
 dev/_session8_batches/batch_*.json
+dev/_session9_batches/batch_*.json
 data/raw_extracts/
 data/classified/
 data/classified_6c/
 data/classified_7/
 data/classified_8/
+data/classified_9/
+config/market_names.bak.*.xlsx
 data/pdf_extracts/
 data/web_extracts/
 data/*.xlsx

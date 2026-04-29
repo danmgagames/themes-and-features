@@ -22,6 +22,7 @@ output an enriched CSV for casino site SEO.
 | Session 7 — Untagged-games triage + mga.games scrape + web_extracts | ~220,000 | 2,618,000 |
 | Session 7b — Classify 84 web_extracts (Bucket C) | ~360,000 | 2,978,000 |
 | Session 8 — Resolver loose-match fix + 17 web_extracts | ~150,000 | 3,128,000 |
+| Session 9 — Bucket A close-out (20 MN rows + 4 new classifications) | ~112,000 | 3,240,000 |
 
 **Category split for Session 6a:** Feature 95% (PDF pipeline + PP side-channel + new market xlsx column), Bug fix 5% (per-market commercial-name lookup that fixed 85 unmatched folders). No Rework, no Cleanup.
 
@@ -36,6 +37,8 @@ output an enriched CSV for casino site SEO.
 **Category split for Session 7b:** Feature 100% (web-extract classification pipeline + 84 new classified games). No Bug fix, no Rework, no Cleanup. Sub-agent total ~330k + main context ~30k = ~360k.
 
 **Category split for Session 8:** Bug fix 50% (loose-match resolver fallback recovering 41 Bucket A naming-mismatch rows) / Feature 50% (17 newly-bridged web_extracts classified via 2 sub-agent batches). Sub-agent total ~71k + main context ~80k = ~150k.
+
+**Category split for Session 9:** Feature 100% (20 alias/new market_names rows added + 4 new base_keys classified via 1 sub-agent batch). Sub-agent total ~32k + main context ~80k = ~112k.
 
 **Budget status:** No `dev/ref/budget.md` exists (also flagged in 6a/6b notes) — no per-session budget defined to compare against. 6c estimated ~250k, actual ~300k (+20%) — within margin given the unplanned merge/diff infrastructure work. Cumulative project tokens: ~2.35M.
 
@@ -551,17 +554,79 @@ ITALY now fully covered. Total enriched market rows up exactly +113 — matches 
 
 ---
 
+### Session 9 — Bucket A close-out (Claude Code)
+**Date:** 2026-04-29
+**Status:** Complete. Bucket A reduced to 2 truly-orphaned rows (coverage ceiling).
+**Token category:** Feature 100%
+
+**What was done:**
+- Investigated each of the 22 remaining Bucket A rows; categorised into 3 classes:
+  - 12 ALIAS rows pointing to already-classified existing base_keys (Maria La Piedra En Troya → S3TroyaCountersGlobal, Hawaii 5-0 → S3HawaiiCountersGlobal, El Cartel Plus Navidad → S3ElCartelNavidadCountersGlobal, etc.).
+  - 4 cross-market variants (Dream3Team .COM/PT/CO; NL Far West Mania = celebrity variant; NL Take the Money = Dutch translation) — synthesised per-market suffix tablenames so suffix-stripping resolves to the canonical SPAIN base_key.
+  - 4 NEW base_keys requiring classification (Aramis Fuster, Dream 3 Team SPAIN, Nacho Vidal Megaways, Ruleta Magic Red).
+- Built `dev/session9_apply_mn_rows.py` — backs up `market_names.xlsx` and appends 20 new rows. Idempotent.
+- Re-ran `match_slugs.py` + `write_web_extracts.py` (258 → 263 web_extracts; 4 unclassified base_keys).
+- 1 sub-agent batch (4 games, ~32k tokens). Validation: all 7 checks pass.
+- Merged → `data/classified/` (301 → 305). Re-ran `localise` + `consolidate` + `generate_market_xlsx.py` + `generate_report.py`.
+
+**Sub-agent total:** ~32k tokens (1 batch, ~50s wall-clock).
+
+**Coverage delta** in `themes_features_by_market.xlsx`:
+| Market | Pre | Post | Δ | Coverage % |
+|---|---:|---:|---:|---:|
+| SPAIN | 214 | 226 | +12 | 97.4% |
+| PORTUGAL | 61 | 63 | +2 | 94.0% |
+| .COM | 114 | 117 | +3 | 97.5% |
+| NETHERLANDS | 21 | **23** | +2 | **100.0%** |
+| ITALY | 27 | 27 | 0 | 100.0% |
+| COLOMBIA | 30 | 31 | +1 | 91.2% |
+| **Total** | **467** | **487** | **+20** | — |
+
+NETHERLANDS now joins ITALY at full coverage. SPAIN at 97.4%.
+
+**Triage delta:**
+| Bucket | Pre-9 | Post-9 | Δ |
+|---|---:|---:|---:|
+| A | 22 | **2** | **−20** |
+| B | 14 | 14 | 0 |
+| C | 0 | 0 | 0 |
+| **Total untagged** | **36** | **16** | **−20** |
+| % blank | 7.2% | **3.2%** | −4.0pp |
+
+**PP candidates:** 0 new hits this session. Total still 4, all from 6a.
+
+**Files created/modified:**
+- `config/market_names.xlsx` (700 → 720 rows; backup at `config/market_names.bak.session9-*.xlsx`)
+- `dev/session9_apply_mn_rows.py`, `dev/validate_session9.py`, `dev/session9_merge.py` (NEW)
+- `dev/_session9_batches/PROMPT_TEMPLATE.md` + 1 batch JSON (NEW)
+- `dev/ref/stage9-summary.md` (NEW)
+- `data/classified_9/*.json` (NEW — 4 files)
+- `data/classified/*.json` (4 newly merged; total 305)
+- `data/web_extracts/*.json` (+5 → 263 total)
+- `output/games_enriched.csv` (305 rows)
+- `output/themes_features_by_market.xlsx` (+20 enriched rows)
+- `output/celebrity_corrections.csv` (87 → 111 audit rows)
+- `output/enrichment_report.html`, `output/untagged_triage.csv` (refreshed)
+- `.gitignore` (added Session 9 paths)
+
+**Risks / notes:**
+- 2 Bucket A residual: `Deus Dos Mares` (PORTUGAL) and `Cosmic Monsters Party` (.COM). No public mga.games entry, no MN row, no related family — needs source content or Product input. Genuine "coverage ceiling".
+- 14 Bucket B unchanged — older/regional/never-public-marketed titles. Closing requires source files.
+- `market_names.xlsx` has 20 synthesized rows with empty Gameid/Enum. Pipeline ignores those columns; safe for SEO output but they'd be flagged if anything ever joined back to the master DB.
+- PORTUGAL "Popeye Caça Tesouros" was aliased to SPAIN canonical `S3PopeyeCountersGlobal` (not PT-specific) — sharing classification is appropriate since the games are translated text only. Re-pointable later if PT-specific source ever gets classified.
+
+---
+
 ## Current status
-**Phase:** Phase 8 complete. Per-market xlsx coverage: SPAIN 214/232 (92.2%), PORTUGAL 61/67 (91.0%), .COM 114/120 (95.0%), NETHERLANDS 21/23 (91.3%), ITALY 27/27 (100.0%), COLOMBIA 30/34 (88.2%). Total enriched market rows: **467** (was 410). Untagged: **36 total** = 22 Bucket A + 14 Bucket B (was 93).
-**Blocker:** None. Product reviews still pending.
-**Next action (Session 9 candidate):** Tackle the 22 truly-new Bucket A. Two sub-paths: (a) celebrity- or language-localised variants of existing games (Dutch `Neem het Geld Megaways`, `Ayla de Zwart Far West Mania Megaways`; possibly the .COM Roulette Grand Croupier rows) — these should map to existing base_keys with celebrity swap-in or alias additions; (b) genuinely-new games (Dream 3 Team in 4 markets, Hawaii 5-0, Cosmic Monsters Party) — need new market_names rows. Recommend (a) first since it's lower risk.
+**Phase:** Phase 9 complete. Per-market xlsx coverage: SPAIN 226/232 (97.4%), PORTUGAL 63/67 (94.0%), .COM 117/120 (97.5%), NETHERLANDS 23/23 (100.0%), ITALY 27/27 (100.0%), COLOMBIA 31/34 (91.2%). Total enriched market rows: **487** (was 467). Untagged: **16 total** = 2 Bucket A + 14 Bucket B. % blank: **3.2%** (was 7.2%).
+**Blocker:** None. Product reviews still pending; remaining 16 untagged rows are coverage ceiling.
 
 **Outstanding (in priority order):**
-1. **Address remaining Bucket A (22 rows)** — see Next action above.
-2. **Address Bucket B (14 rows)** — likely retired/regional-only. Close as "coverage ceiling" or chase with Product team for source files.
+1. **Bucket B (14 rows)** — older / regional / never-public-marketed titles. Need source content from Product team or accept as ceiling.
+2. **Bucket A (2 rows)** — `Deus Dos Mares` (PORTUGAL), `Cosmic Monsters Party` (.COM). Truly off-site; no related family. Needs Product team confirmation or new source.
 3. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
 4. Product team to review `output/backfill_diffs.csv` (34 rows) — decide whether any Session 5 vs. 6c disagreements warrant overriding Session 5's authoritative tags.
-5. Product team to review `output/celebrity_corrections.csv` (87 rows after 8) — confirm strict-full-name policy is right.
+5. Product team to review `output/celebrity_corrections.csv` (111 rows after 9) — confirm strict-full-name policy is right.
 6. Optional: refactor `main.py` (still 673 lines) — split each `cmd_*` into `agents/cli/<command>.py`.
-7. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 153/301 (SPAIN/.COM cname masking quirk + new web-only base_keys without canonical _Es suffix).
+7. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 179/305 (SPAIN/.COM cname masking quirk + new web-only base_keys without canonical _Es suffix).
 8. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.
