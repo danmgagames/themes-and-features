@@ -32,6 +32,10 @@ output an enriched CSV for casino site SEO.
 
 **Context limits / splitting:** 6c did NOT hit context limits. No splitting needed. `main.py` remains at **673 lines** (>500-line threshold flagged since 6a — split discussion still pending; suggested seam: each `cmd_*` → `agents/cli/<command>.py`). All other modules under 500.
 
+**Budget status (6d):** No `dev/ref/budget.md` exists (flagged since 6a). 6d ran in ~50k tokens — well within any reasonable Bug-fix budget. Cumulative project tokens: ~2.40M.
+
+**Context limits / splitting (6d):** No context-limit issues. `main.py` still 673 lines; `generate_market_xlsx.py` grew 192 → 318 lines, comfortably under 500. No other files crossed thresholds.
+
 **Budget status:** No `dev/ref/budget.md` exists yet — no per-session budget to compare against. Session 6a's 480k tokens used ~60% of the user's current 5-hour Max-plan window. Estimated 6b would push cumulative to ~105% if run back-to-back; **plan is to wait for window reset before 6b** (or split 6b into two sub-sessions).
 
 **Context limits / splitting:** Session deliberately split per plan: 6a (this session, 80 NEW games) → hard pause → 6b (58 NEW games, fresh context) → 6c (47 backfills, fresh context). Did NOT hit context limits this session.
@@ -380,13 +384,15 @@ Total enriched market rows unchanged at 278 — 6c only added Description to exi
 ---
 
 ## Current status
-**Phase:** Phase 6 complete. 185 PDF-sourced classified JSONs (138 from 6a/6b NEW games + 47 from 6c backfills). All Session-5-classified games that have a PDF extract now carry a Description.
-**Blocker:** None — pipeline-side work is done. Awaiting Product team review of two CSVs (see Outstanding).
-**Next action:** Hand off to Product. Project is ~complete.
+**Phase:** Phase 6 + 6d (per-market celebrity validation) complete. 185 PDF-sourced classified JSONs and the per-market xlsx now correct on celebrity attribution. Coverage in `themes_features_by_market.xlsx`: SPAIN 127/232, PORTUGAL 45/67, .COM 60/120, NETHERLANDS 15/23, ITALY 23/27, COLOMBIA 8/34.
+**Blocker:** None for the next step. Product review still pending on `pp_mechanic_candidates.csv`, `missing_mechanics_review.xlsx`, `backfill_diffs.csv`.
+**Next action:** Address the **untagged games** — AM market rows that currently have no themes/features. The biggest gaps are the 105 SPAIN AM rows without enrichment (`output/am_spain_gap_report.csv`) and 60 .COM, 50 PORTUGAL, etc. across the other sheets. Likely root causes: (a) no PPTX or PDF was found, (b) base_key match did not resolve via market_names.xlsx, (c) games are EXTERNAL/IP titles outside the MGA-developed catalogue. Approach to discuss next session: triage the gap reports, identify which classes of game are truly missing source material vs. just unmatched, and decide whether a fallback enrichment path is needed (e.g. AM-only metadata, or a thinner classification pass driven by GameName/Category alone).
 
-**Outstanding (all non-blocking, Product/optional):**
-1. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
-2. Product team to review `output/backfill_diffs.csv` (34 rows) — decide whether any of the Session 5 vs. 6c disagreements warrant overriding Session 5's authoritative tags.
-3. Optional: refactor `main.py` (now 673 lines) — split each `cmd_*` into `agents/cli/<command>.py`.
-4. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 52/200 (same SPAIN/.COM cname masking quirk that pdf_extractor sidesteps). Cross-market deliverable still works via the AM-direct path, so this is cosmetic.
-5. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.
+**Outstanding (in priority order):**
+1. **Address untagged games** — triage AM gap rows and design an enrichment path for the still-untagged catalogue (next session focus).
+2. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
+3. Product team to review `output/backfill_diffs.csv` (34 rows) — decide whether any of the Session 5 vs. 6c disagreements warrant overriding Session 5's authoritative tags.
+4. Product team to review `output/celebrity_corrections.csv` (60 rows) — confirm strict-full-name policy is right; the 6× Chiquito SPAIN rows that lost `Chiquito de la Calzada` are intentional but flag-able.
+5. Optional: refactor `main.py` (now 673 lines) — split each `cmd_*` into `agents/cli/<command>.py`.
+6. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 52/200 (same SPAIN/.COM cname masking quirk that pdf_extractor sidesteps). Cosmetic.
+7. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.
