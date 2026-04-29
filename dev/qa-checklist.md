@@ -128,3 +128,31 @@
 
 ### PP candidates (no new hits expected from SLOTS3/BINGO)
 - [x] Confirmed: 0 new PP candidates from 6b. Total side-channel still 4 hits, all from 6a.
+
+## Session 6c — PDF Description backfill for 47 Session-5 games
+
+### Sub-agent classification (47 backfills — 9 MEGAWAYS + 38 SLOTS3)
+- [ ] Spot-check 5 random `data/classified_6c/<base_key>.json` — themes/features plausible, description verbatim (EN PDFs) or cleanly translated (ES PDFs)
+- [ ] Confirm celebrity-named SLOTS3 backfills (Canales Rivera, Chiquito, El Sevilla, Juan Muñoz, Makoke, Mario Vaquerizo, Mask Singer, Pasapalabra, RF Burlesque, Samantha Fox, El Cartel) carry `Celebrities` + the person's name in themes (in either Session 5 or 6c — even if Session 5 stays authoritative, 6c output should agree)
+- [ ] Confirm at least one SLOTS3 backfill with `pdf_source_language: "ES"` has a faithful English translation in its `description`
+
+### Merge / diff post-processor
+- [ ] Open `data/classified/MegawaysGeneralCountersChefDelights.json` — confirm Session 5 themes (`Food`, `Movies & TV`) preserved AND new keys present: `description`, `pdf_source_language`, `pdf_found`, `pp_candidate_mechanics`
+- [ ] Confirm `data/classified/` has 200 JSONs and 185 of them carry both `description` and `pdf_source_language`
+- [ ] Confirm `data/classified_6c/` has exactly 47 JSONs (preserved as backup of sub-agent output)
+
+### backfill_diffs.csv (the human-review surface — Session 5 stays authoritative)
+- [ ] Open `output/backfill_diffs.csv` — confirm 34 rows (22 themes, 12 features), each with both confidences ≥ 0.85
+- [ ] Spot-check 3 themes-kind rows — confirm `only_in_s6c` adds make sense from PDF prose (not hallucinations)
+- [ ] Spot-check 3 features-kind rows — confirm dominant adds are `Bonus Game` / `Nudge & Hold` (PDF tech-table convention)
+- [ ] Decide whether any of the 34 disagreements should override Session 5; document the call in this checklist
+
+### PP candidates (no new hits expected from these 47 games)
+- [x] Confirmed: 0 new PP candidates from 6c. Total side-channel still 4 hits, all from 6a.
+
+### Cross-market deliverable
+- [ ] Open `output/themes_features_by_market.xlsx` SPAIN sheet — Description column populated for all 127 enriched rows (was 83 pre-6c; +44 from 6c)
+- [ ] Confirm no themes/features regression on the 47 backfilled games (Session 5 stays authoritative on the merged JSON)
+
+### Validation gate
+- [x] Re-run `python dev/validate_session6a.py` — all 7 checks passed for 185 PDF-sourced JSONs

@@ -21,6 +21,14 @@ output an enriched CSV for casino site SEO.
 
 **Category split for Session 6a:** Feature 95% (PDF pipeline + PP side-channel + new market xlsx column), Bug fix 5% (per-market commercial-name lookup that fixed 85 unmatched folders). No Rework, no Cleanup.
 
+**Category split for Session 6b:** Feature 100% (classification work using 6a infrastructure). No Rework, no Cleanup.
+
+**Category split for Session 6c:** Feature 100% (PDF Description backfill + new merge/diff post-processor). No Rework, no Cleanup.
+
+**Budget status:** No `dev/ref/budget.md` exists (also flagged in 6a/6b notes) — no per-session budget defined to compare against. 6c estimated ~250k, actual ~300k (+20%) — within margin given the unplanned merge/diff infrastructure work. Cumulative project tokens: ~2.35M.
+
+**Context limits / splitting:** 6c did NOT hit context limits. No splitting needed. `main.py` remains at **673 lines** (>500-line threshold flagged since 6a — split discussion still pending; suggested seam: each `cmd_*` → `agents/cli/<command>.py`). All other modules under 500.
+
 **Budget status:** No `dev/ref/budget.md` exists yet — no per-session budget to compare against. Session 6a's 480k tokens used ~60% of the user's current 5-hour Max-plan window. Estimated 6b would push cumulative to ~105% if run back-to-back; **plan is to wait for window reset before 6b** (or split 6b into two sub-sessions).
 
 **Context limits / splitting:** Session deliberately split per plan: 6a (this session, 80 NEW games) → hard pause → 6b (58 NEW games, fresh context) → 6c (47 backfills, fresh context). Did NOT hit context limits this session.
