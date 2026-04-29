@@ -5,6 +5,7 @@ dev/_session6b_batches/
 dev/_session6c_batches/
 data/raw_extracts/
 data/classified/
+data/classified_6c/
 data/pdf_extracts/
 data/classifier_log.jsonl
 output/

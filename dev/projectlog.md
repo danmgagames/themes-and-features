@@ -17,6 +17,7 @@ output an enriched CSV for casino site SEO.
 | Session 5 — Re-run + AM_Masterlist join + PP taxonomy parity | ~450,000 | 1,228,000 |
 | Session 6a — PDF enrichment (80 games) + PP candidate side-channel | ~480,000 | 1,708,000 |
 | Session 6b — PDF enrichment SLOTS3 tail (54 games) | ~340,000 | 2,048,000 |
+| Session 6c — PDF Description backfill (47 Session-5 games) | ~300,000 | 2,348,000 |
 
 **Category split for Session 6a:** Feature 95% (PDF pipeline + PP side-channel + new market xlsx column), Bug fix 5% (per-market commercial-name lookup that fixed 85 unmatched folders). No Rework, no Cleanup.
 
@@ -271,6 +272,49 @@ output an enriched CSV for casino site SEO.
 
 ---
 
+### Session 6c — PDF Description backfill for 47 Session-5 games (Claude Code)
+**Date:** 2026-04-29
+**Status:** Complete. Phase 6 done.
+**Token category:** Feature 100%
+
+**What was done:**
+- Built `dev/session6c_batches.py` (inverted 6b filter: enriched + PDF available = 47 candidates: 9 MEGAWAYS + 38 SLOTS3) and `dev/_session6c_batches/PROMPT_TEMPLATE.md` (Description-primary; sub-agents write to `data/classified_6c/`, NOT `data/classified/`).
+- 6 batches dispatched as 2 waves of 3 sub-agents each. ~260k tokens for the 6 batches.
+- Built `dev/session6c_merge.py` — merges PDF description / pdf_source_language / pdf_found / pp_candidate_mechanics into the Session-5 JSONs while keeping Session 5's themes/features authoritative; logs material disagreements (both confidences ≥0.85 AND tag-set differs) to `output/backfill_diffs.csv`.
+- Validation: all 7 checks pass for 185 PDF-sourced JSONs (138 from 6a/6b + 47 newly merged).
+- Refreshed `consolidate` + `generate_market_xlsx.py` + `generate_report.py`.
+
+**Disagreement detector:** 34 rows in `output/backfill_diffs.csv` (22 themes, 12 features). Patterns are source-format-driven (PDFs surface different prose vs. PPTX technical tables) and need Product review — not errors.
+
+**PP candidates:** 0 new hits. Total still 4, all from 6a.
+
+**Coverage delta** (Description column in `themes_features_by_market.xlsx`):
+| Market | Pre-6c desc | Post-6c desc | Δ |
+|---|---:|---:|---:|
+| SPAIN | 83 | 127 | +44 |
+| PORTUGAL | 42 | 43 | +1 |
+| .COM | 57 | 60 | +3 |
+| NETHERLANDS | 15 | 15 | 0 |
+| ITALY | 23 | 23 | 0 |
+| COLOMBIA | 8 | 8 | 0 |
+| **Total** | **228** | **276** | **+48** |
+
+Total enriched market rows unchanged at 278 — 6c only added Description to existing rows.
+
+**Files created/modified:**
+- `dev/session6c_batches.py` (NEW)
+- `dev/session6c_merge.py` (NEW)
+- `dev/_session6c_batches/PROMPT_TEMPLATE.md` + 6 batch JSONs (NEW)
+- `dev/ref/stage6c-summary.md` (NEW)
+- `data/classified_6c/*.json` (NEW — 47 files preserved as 6c sub-agent output backup)
+- `data/classified/*.json` (47 files merged: now carry Session 5 tags + PDF description)
+- `output/backfill_diffs.csv` (NEW — 34 rows for human review)
+- `output/games_enriched.csv`, `output/themes_features_by_market.xlsx`, `output/enrichment_report.html` (refreshed)
+
+**Note:** No code changes to the main pipeline (`main.py`, `agents/`) this session — pure backfill work using infrastructure built in 6a/6b plus the new merge/diff helper.
+
+---
+
 ### Session 6b — PDF enrichment SLOTS3 tail (Claude Code)
 **Date:** 2026-04-28
 **Status:** Complete. Run back-to-back with 6a (user opted in despite token-budget warning).
@@ -297,20 +341,13 @@ output an enriched CSV for casino site SEO.
 ---
 
 ## Current status
-**Phase:** Sessions 6a + 6b complete. 138 of 138 NEW base_keys classified from PDFs. Only the 47 PDF backfills for Session-5-classified games remain (Session 6c, Description column only).
-**Blocker:** Awaiting Max-plan token-window refresh — 6a+6b consumed ~820k tokens back-to-back. Resume 6c only after window resets.
-**Next action:** Session 6c — 47 PDF backfills. After token-window resets, start a fresh conversation with `/catchup`, then run the backfill waves.
+**Phase:** Phase 6 complete. 185 PDF-sourced classified JSONs (138 from 6a/6b NEW games + 47 from 6c backfills). All Session-5-classified games that have a PDF extract now carry a Description.
+**Blocker:** None — pipeline-side work is done. Awaiting Product team review of two CSVs (see Outstanding).
+**Next action:** Hand off to Product. Project is ~complete.
 
-**Session 6c kickoff cheat-sheet:**
-1. `/catchup` — read this projectlog + `dev/ref/stage6b-summary.md` + `dev/_session6a_batches/PROMPT_TEMPLATE.md`
-2. Build 6c batches: clone `dev/session6b_batches.py` to `dev/session6c_batches.py`, but invert the filter — target `bk in enriched_keys AND bk has a PDF extract` (the 47 Session-5 games).
-3. Add a Description-only override to the prompt template OR a new `dev/_session6c_batches/PROMPT_TEMPLATE.md`: instruct sub-agents to compute themes/features as normal but ALSO populate `description`. Then write a small post-processor that compares 6c themes/features against the existing Session-5 classification and logs material disagreements (theme/feature confidence ≥ 0.85 AND tags differ) to `output/backfill_diffs.csv` — Session 5 stays authoritative until human review.
-4. ~6 sub-agents, 2 waves, ~250k tokens.
-5. Validate, refresh outputs, commit, push.
-
-**Outstanding:**
-1. Session 6c — 47 PDF backfills for Session-5 games (description column only; preserve themes/features unless material disagreement → log to `output/backfill_diffs.csv`). ~6 sub-agents in 2 waves, ~250k tokens.
-2. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
+**Outstanding (all non-blocking, Product/optional):**
+1. Product team to review `output/missing_mechanics_review.xlsx` AND `output/pp_mechanic_candidates.csv` (4 hits) — confirm green-lit mechanics → bump taxonomy to v2.4 → re-classify affected games.
+2. Product team to review `output/backfill_diffs.csv` (34 rows) — decide whether any of the Session 5 vs. 6c disagreements warrant overriding Session 5's authoritative tags.
 3. Optional: refactor `main.py` (now 673 lines) — split each `cmd_*` into `agents/cli/<command>.py`.
 4. Optional: fix `localisation_resolver.match_extract_to_family` no-match for 52/200 (same SPAIN/.COM cname masking quirk that pdf_extractor sidesteps). Cross-market deliverable still works via the AM-direct path, so this is cosmetic.
 5. Slots5/Bingo legacy PPTXs not yet downloaded — when they arrive, extractor picks them up via numeric-prefix pattern.
