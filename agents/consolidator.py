@@ -75,7 +75,7 @@ OUTPUT_COLUMNS = [
     'features', 'description', 'celebrity_names',
     'theme_confidence', 'feature_confidence',
     'localisation_match_confidence', 'pptx_found', 'pdf_found',
-    'pdf_source_language',
+    'pdf_source_language', 'web_found', 'web_source_language',
     *AM_COLUMNS,
     'review_flag', 'review_reason',
 ]
@@ -147,6 +147,8 @@ def build_row(game: dict) -> dict:
         'pptx_found': pptx_found,
         'pdf_found': game.get('pdf_found', False),
         'pdf_source_language': game.get('pdf_source_language') or '',
+        'web_found': game.get('web_found', False),
+        'web_source_language': game.get('web_source_language') or '',
         'review_flag': review_flag,
         'review_reason': '; '.join(reasons) if reasons else '',
     }
