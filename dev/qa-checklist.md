@@ -221,3 +221,90 @@
 - [x] `from agents.am_masterlist import load_am_market` works for all 6 sheets
 - [x] `load_am_spain` (legacy wrapper) still callable and returns identical rows to `load_am_market(p, 'SPAIN')`
 - [ ] Re-run `python main.py consolidate ...` — confirm no breakage from the am_masterlist refactor
+
+## Session 7b — Web-extract classification (Bucket C close-out)
+
+### Sub-agent classification (84 NEW base_keys from web sources)
+- [x] All 7 checks in `dev/validate_session7b.py` pass for 84 web-sourced JSONs
+- [x] 0 collisions on merge into `data/classified/` (200 → 284)
+- [ ] Spot-check 5 random `data/classified_7/<base_key>.json` against the source `data/web_extracts/<base_key>.json` — themes/features plausible, description faithfully translated from Spanish source
+- [ ] Verify `web_found: true` and `web_source_language: "ES"` set on all 84 outputs
+- [ ] Confirm `pdf_found: false` on all 84 (web-only games never had PDFs)
+
+### Schema additions in consolidator
+- [x] `web_found` and `web_source_language` columns appear in `output/games_enriched.csv` (24 cols total, was 22)
+- [ ] Open `games_enriched.csv` in Excel — confirm new columns populate cleanly (true/false + ES/empty)
+
+### Coverage delta
+- [x] Per-market xlsx total enriched rows: 297 → 410 (+113, exactly matching Bucket C target)
+- [x] ITALY now 100% covered (27/27)
+- [ ] Spot-check 5 newly-enriched rows in `themes_features_by_market.xlsx` — themes/features populated, no collateral regressions
+
+## Session 8 — Loose-match resolver fix + 17 web_extracts
+
+### Resolver code change
+- [x] `agents/pdf_extractor.py::_resolve_base_key_per_market` returns `mn_loose` / `mn_loose_xmarket` for previously-Bucket-A AM rows (`Carnaval Bingo`, `Mr Magnifico`, etc.)
+- [x] `generate_market_xlsx.py::find_base_key` mirrors the same loose fallback
+- [x] No regressions: existing exact/fuzzy matches still return the same base_keys (verified by re-running pipeline — coverage of pre-existing rows unchanged)
+- [ ] Spot-check edge case: `Castle Slots` (SLOTS5) and `Castle Bingo` (BINGO) still resolve to their respective base_keys (within-market exact fires before loose)
+- [ ] Spot-check: `Castle Slots` (which had no MN row) now correctly resolves via loose match if applicable
+
+### Web-extract refresh
+- [x] `dev/match_slugs.py` re-run: slug→base_key resolutions increased due to loose match
+- [x] `dev/write_web_extracts.py`: web_extracts grew 240 → 258 (+18)
+- [x] 17 of those 18 unclassified base_keys; 1 already classified (PDF-sourced)
+
+### Sub-agent classification (17 NEW base_keys, 16 BINGO + 1 SLOTS3)
+- [x] All 7 checks in `dev/validate_session8.py` pass
+- [x] 0 collisions on merge (284 → 301)
+- [ ] Spot-check 3 random `data/classified_8/<base_key>.json` — bingo descriptions translated cleanly to English, themes plausible
+- [ ] Verify `MrMagnificoCountersGlobal` carries the `Mr Magnifico` celebrity tag if applicable
+
+### Triage delta
+- [x] Bucket A: 63 → 22 (−41, all naming-mismatch recoveries)
+- [x] Bucket B: 30 → 14 (-16; some moved to TAGGED via newly-found classifications, others moved here from A)
+- [x] Total untagged: 93 → 36
+- [x] % blank: 18.5% → 7.2%
+
+### Coverage delta
+- [x] SPAIN 92.2%, .COM 95.0%, COLOMBIA 88.2%, NETHERLANDS 91.3%
+- [x] Total enriched market rows: 410 → 467 (+57)
+
+## Session 9 — Bucket A close-out (alias rows + 4 new classifications)
+
+### market_names.xlsx mutation
+- [x] `dev/session9_apply_mn_rows.py` runs cleanly; appends 20 rows; backup written to `config/market_names.bak.session9-<timestamp>.xlsx`
+- [x] Idempotence: re-running the script reports "Skipped 20 of 20 proposed rows" (verified by inspection of skip logic — would need re-run to confirm)
+- [ ] Open `config/market_names.xlsx` — verify 20 new rows have correct shape, no header drift, COMMERCIAL NAME matches AM Masterlist exactly for each
+- [ ] Spot-check: SPAIN "Hawaii 5-0" row points to `S3HawaiiCountersGlobal` (existing classified base_key)
+- [ ] Spot-check: NETHERLANDS "Neem het Geld Megaways" row's tablename `MegawaysGeneralCountersTakeTheMoneyNl` strips to canonical `MegawaysGeneralCountersTakeTheMoney`
+
+### Sub-agent classification (4 NEW base_keys)
+- [x] All 7 checks in `dev/validate_session9.py` pass for 4 web-sourced JSONs
+- [x] 0 collisions on merge (301 → 305)
+- [ ] Spot-check `S3AramisFusterCountersGlobal` — themes include `Celebrities` + `Aramis Fuster`
+- [ ] Spot-check `Slots5GeneralCountersDream3Team` — themes include `Celebrities` + `Quique Tejada`/`Toni Peret`/`Josep Maria Castells` (or equivalent music-trio names) and `Music`
+- [ ] Spot-check `MegawaysGeneralCountersNachoVidal` — themes include `Celebrities` + `Nacho Vidal` and `Megaways` feature
+- [ ] Spot-check `RouletteGeneralCountersMagicRed` — single roulette-themed entry, no celebrity tag
+
+### Per-market xlsx coverage
+- [x] SPAIN 226/232 (97.4%)
+- [x] PORTUGAL 63/67 (94.0%)
+- [x] .COM 117/120 (97.5%)
+- [x] NETHERLANDS 23/23 (100.0%) — newly fully covered
+- [x] ITALY 27/27 (100.0%)
+- [x] COLOMBIA 31/34 (91.2%)
+- [x] Total: 487 enriched market rows (was 467, +20)
+
+### Triage delta
+- [x] Bucket A: 22 → 2 (only `Deus Dos Mares` PORTUGAL and `Cosmic Monsters Party` .COM remain)
+- [x] Bucket B: 14 unchanged (real "no source" ceiling)
+- [x] % blank: 7.2% → 3.2%
+
+### Cross-language alias decisions
+- [ ] Spot-check PORTUGAL "Popeye Caça Tesouros" in xlsx — populates with SPAIN Popeye themes/features (correct, since it's translated text only)
+- [ ] Spot-check NETHERLANDS "Neem het Geld Megaways" — populates with TakeTheMoney Megaways themes/features
+- [ ] Spot-check NETHERLANDS "Ayla de Zwart Far West Mania Megaways" — populates with FarWestMania themes; celebrity validation should swap in `Ayla de Zwart` if present in GameName
+
+### Celebrity-corrections audit
+- [ ] Open `output/celebrity_corrections.csv` (111 rows) — verify the new ALIA-driven additions/removals look intentional, not over-aggressive

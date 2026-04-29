@@ -40,6 +40,12 @@ output an enriched CSV for casino site SEO.
 
 **Category split for Session 9:** Feature 100% (20 alias/new market_names rows added + 4 new base_keys classified via 1 sub-agent batch). Sub-agent total ~32k + main context ~80k = ~112k.
 
+**Budget status (Session 9):** No `dev/ref/budget.md` exists (flagged since 6a). 9 ran in ~112k tokens — comparable to 6c (300k) but smaller scope. Cumulative project tokens: ~3.24M.
+
+**Context limits / splitting (Session 9):** No context-limit issues. Single-batch session with 4 new base_keys; no waves needed.
+
+**File-size flag (Session 9):** `agents/pdf_extractor.py` newly crossed the 500-line threshold — currently **509 lines** (was 474 in 6a, grew by 35 lines for the loose-match fallback in 8 + nothing in 9). Suggest a split discussion next session — natural seam: extract the resolver helpers (`_norm`, `_norm_loose`, `_build_commercial_lookup`, `_resolve_base_key_per_market`) into a new `agents/resolver.py` and have both `pdf_extractor.py` and `generate_market_xlsx.py` import from there (would also dedupe the loose-match logic that's currently inlined in both files). `main.py` still 673 lines (flagged since 6a — unchanged). `generate_market_xlsx.py` at 365, `agents/extractor.py` at 392, `agents/consolidator.py` at 389 — comfortably under.
+
 **Budget status:** No `dev/ref/budget.md` exists (also flagged in 6a/6b notes) — no per-session budget defined to compare against. 6c estimated ~250k, actual ~300k (+20%) — within margin given the unplanned merge/diff infrastructure work. Cumulative project tokens: ~2.35M.
 
 **Context limits / splitting:** 6c did NOT hit context limits. No splitting needed. `main.py` remains at **673 lines** (>500-line threshold flagged since 6a — split discussion still pending; suggested seam: each `cmd_*` → `agents/cli/<command>.py`). All other modules under 500.
