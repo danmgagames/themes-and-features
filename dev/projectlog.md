@@ -18,12 +18,15 @@ output an enriched CSV for casino site SEO.
 | Session 6a — PDF enrichment (80 games) + PP candidate side-channel | ~480,000 | 1,708,000 |
 | Session 6b — PDF enrichment SLOTS3 tail (54 games) | ~340,000 | 2,048,000 |
 | Session 6c — PDF Description backfill (47 Session-5 games) | ~300,000 | 2,348,000 |
+| Session 6d — Per-market celebrity-name validation (xlsx-only) | ~50,000 | 2,398,000 |
 
 **Category split for Session 6a:** Feature 95% (PDF pipeline + PP side-channel + new market xlsx column), Bug fix 5% (per-market commercial-name lookup that fixed 85 unmatched folders). No Rework, no Cleanup.
 
 **Category split for Session 6b:** Feature 100% (classification work using 6a infrastructure). No Rework, no Cleanup.
 
 **Category split for Session 6c:** Feature 100% (PDF Description backfill + new merge/diff post-processor). No Rework, no Cleanup.
+
+**Category split for Session 6d:** Bug fix 100% (per-market celebrity validation in `generate_market_xlsx.py`). No Feature, Rework, or Cleanup.
 
 **Budget status:** No `dev/ref/budget.md` exists (also flagged in 6a/6b notes) — no per-session budget defined to compare against. 6c estimated ~250k, actual ~300k (+20%) — within margin given the unplanned merge/diff infrastructure work. Cumulative project tokens: ~2.35M.
 
@@ -277,6 +280,34 @@ output an enriched CSV for casino site SEO.
 
 **Risks observed (non-blocking):**
 - `localisation_resolver.match_extract_to_family` no-match for 51/146 — same SPAIN/.COM cname quirk. Cross-market deliverable still works (joins via AM directly). Fix in 6b if there's headroom.
+
+---
+
+### Session 6d — Per-market celebrity-name validation in market xlsx (Claude Code)
+**Date:** 2026-04-29
+**Status:** Complete.
+**Token category:** Bug fix 100%
+
+**What was done:**
+- Added per-row celebrity validation to `generate_market_xlsx.py`. Celebrity tags propagate at base_key level but vary by market — e.g. SPAIN "Lejano Oeste Mania Megaways" was carrying `Ron Josol` (a Canada/Sweden IP variant celebrity) even though Ron Josol isn't in the Spanish game name.
+- Strict-full-name match policy (after lowercase + accent-fold + conjunction normalization `& ↔ y ↔ e ↔ and`): each celebrity-name tag must appear as a substring of the localised GameName or it gets pruned. Umbrella `Celebrities` is dropped when no celebrity name survives. Swap-in: any celebrity from the global pool that IS in GameName but missing from themes is added.
+- New helpers: `norm_match()`, `load_taxonomy_themes()`, `collect_celebrity_pool()`, `validate_celebrities()`. Existing `norm()` reused.
+- New artefact: `output/celebrity_corrections.csv` — audit log of every removal/swap/umbrella drop.
+- No changes to `agents/`, `main.py`, `config/seo_taxonomy.json`, or `data/classified/*.json`. `games_enriched.csv` stays per-base_key with the union of celebrities; the per-market xlsx is the cleaned view.
+
+**Results:**
+- 60 audit rows: **29 removals**, **2 additions**, **29 umbrella drops**.
+- Per-sheet removals: SPAIN 9, ITALY 7, .COM 6, PORTUGAL 5, NETHERLANDS 1, COLOMBIA 1.
+- 6× Chiquito SPAIN games lost `Chiquito de la Calzada` (intended outcome of strict-full-name; "Chiquito Halloween" etc. don't carry the full name). User explicitly chose strict policy.
+- SPAIN swap-in: `Sonia Monroy En El Planeta Halloween` got `Sonia Monroy` + `Celebrities` added (base_key had no celebrity; SPAIN-localised name introduces her).
+
+**Out of scope:** persisting per-market celebrity overrides back into classified JSONs (would require restructuring storage to per-market-per-base_key); upstream classifier prompt fix for the bleed (separate workstream).
+
+**Files created/modified:**
+- `generate_market_xlsx.py` (helpers + row-loop wiring + audit CSV writer)
+- `dev/qa-checklist.md` (Session 6d block)
+- `output/themes_features_by_market.xlsx` (refreshed; .LATEST sibling if Excel was open)
+- `output/celebrity_corrections.csv` (NEW)
 
 ---
 

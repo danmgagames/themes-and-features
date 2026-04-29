@@ -9,6 +9,7 @@ Joins:
 """
 
 import csv
+import json
 import re
 import unicodedata
 from pathlib import Path
@@ -22,9 +23,13 @@ AM_PATH = PROJECT_ROOT / 'config' / 'AM_Masterlist.xlsx'
 MN_PATH = PROJECT_ROOT / 'config' / 'market_names.xlsx'
 ENRICHED_PATH = PROJECT_ROOT / 'output' / 'games_enriched.csv'
 OUTPUT_PATH = PROJECT_ROOT / 'output' / 'themes_features_by_market.xlsx'
+TAXONOMY_PATH = PROJECT_ROOT / 'config' / 'seo_taxonomy.json'
+CORRECTIONS_PATH = PROJECT_ROOT / 'output' / 'celebrity_corrections.csv'
 
 SUFFIX_PATTERN = re.compile(r'(NoIp|Es|Pt|It|Co|Nl|Ca|Se)$', re.IGNORECASE)
 FUZZY_THRESHOLD = 88
+CELEBRITIES_UMBRELLA = 'Celebrities'
+_CONJUNCTION_RE = re.compile(r'\s*(?:&|\band\b|\by\b|\be\b)\s*')
 
 
 def norm(s) -> str:
@@ -33,6 +38,95 @@ def norm(s) -> str:
     s = str(s).strip().lower()
     s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
     return ' '.join(s.split())
+
+
+def norm_match(s) -> str:
+    """Like norm() but also collapses & / and / y / e (Spanish, Portuguese,
+    Italian conjunctions) so 'Andy & Lucas', 'Andy y Lucas', 'Andy and Lucas'
+    all converge for substring matching."""
+    n = norm(s)
+    return _CONJUNCTION_RE.sub(' & ', n).strip()
+
+
+def load_taxonomy_themes() -> set[str]:
+    """Canonical theme tags = umbrella keys + every sub-tag they list."""
+    with open(TAXONOMY_PATH, 'r', encoding='utf-8') as f:
+        tx = json.load(f)
+    out: set[str] = set()
+    themes = tx.get('themes') or {}
+    for umbrella, sub_list in themes.items():
+        out.add(umbrella)
+        for tag in sub_list:
+            out.add(tag)
+    return out
+
+
+def collect_celebrity_pool(enriched: dict, taxonomy_themes: set[str]) -> set[str]:
+    """Theme tags that co-occur with `Celebrities` somewhere AND are not in
+    the canonical taxonomy. These are the celebrity-name tags."""
+    pool: set[str] = set()
+    for r in enriched.values():
+        themes = [t for t in (r.get('themes') or '').split('|') if t]
+        if CELEBRITIES_UMBRELLA not in themes:
+            continue
+        for t in themes:
+            if t == CELEBRITIES_UMBRELLA or t in taxonomy_themes:
+                continue
+            pool.add(t)
+    return pool
+
+
+def validate_celebrities(
+    themes_str: str,
+    game_name: str,
+    celebrity_pool: set[str],
+    taxonomy_themes: set[str],
+) -> tuple[str, list[dict]]:
+    """Strict full-name policy:
+      - Drop any celebrity-name tag whose normalized form is not a substring
+        of the normalized GameName.
+      - Add any celebrity tag from the global pool that IS a substring of
+        GameName but is missing from the row's themes.
+      - If no celebrity-name tag survives, drop the `Celebrities` umbrella.
+      - If a swap-in introduces the first celebrity-name, restore the umbrella.
+    """
+    if not themes_str:
+        return themes_str, []
+
+    themes = [t for t in themes_str.split('|') if t]
+    gn_norm = norm_match(game_name)
+    log: list[dict] = []
+
+    current_cel_names = [t for t in themes
+                         if t != CELEBRITIES_UMBRELLA and t not in taxonomy_themes]
+
+    for cel in current_cel_names:
+        if norm_match(cel) not in gn_norm:
+            themes.remove(cel)
+            log.append({'action': 'remove', 'tag': cel,
+                        'reason': 'celebrity name not in localised GameName'})
+
+    for cel in celebrity_pool:
+        if cel in themes:
+            continue
+        cel_norm = norm_match(cel)
+        if cel_norm and cel_norm in gn_norm:
+            themes.append(cel)
+            log.append({'action': 'add', 'tag': cel,
+                        'reason': 'celebrity name found in localised GameName'})
+
+    surviving_names = [t for t in themes
+                       if t != CELEBRITIES_UMBRELLA and t not in taxonomy_themes]
+    if not surviving_names and CELEBRITIES_UMBRELLA in themes:
+        themes.remove(CELEBRITIES_UMBRELLA)
+        log.append({'action': 'drop_umbrella', 'tag': CELEBRITIES_UMBRELLA,
+                    'reason': 'no celebrity-name tag survived row validation'})
+    elif surviving_names and CELEBRITIES_UMBRELLA not in themes:
+        themes.append(CELEBRITIES_UMBRELLA)
+        log.append({'action': 'add', 'tag': CELEBRITIES_UMBRELLA,
+                    'reason': 'umbrella restored alongside swap-in celebrity'})
+
+    return '|'.join(themes), log
 
 
 def load_mn_lookup() -> dict:
@@ -103,6 +197,11 @@ def main():
     enriched = load_enriched()
     print(f"Loaded {len(enriched)} enriched games, {len(mn_lookup)} mn (market, name) lookups")
 
+    taxonomy_themes = load_taxonomy_themes()
+    celebrity_pool = collect_celebrity_pool(enriched, taxonomy_themes)
+    print(f"Celebrity pool: {len(celebrity_pool)} tags")
+    corrections: list[dict] = []
+
     am_wb = openpyxl.load_workbook(str(AM_PATH), read_only=True, data_only=True)
     out_wb = openpyxl.Workbook()
     out_wb.remove(out_wb.active)
@@ -147,6 +246,15 @@ def main():
                 features = enriched[bk].get('features', '')
                 description = enriched[bk].get('description', '')
                 n_matched += 1
+                themes, log_entries = validate_celebrities(
+                    themes, str(game_name), celebrity_pool, taxonomy_themes)
+                for entry in log_entries:
+                    corrections.append({
+                        'sheet': sheet_name,
+                        'base_key': bk,
+                        'game_name': str(game_name).strip(),
+                        **entry,
+                    })
 
             out_ws.append([
                 str(game_name).strip(),
@@ -186,6 +294,24 @@ def main():
     for name, total, matched in summary:
         pct = (matched / total * 100) if total else 0
         print(f"{name:<14} {total:>6} {matched:>9} {pct:>8.1f}%")
+
+    fields = ['sheet', 'base_key', 'game_name', 'action', 'tag', 'reason']
+    CORRECTIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(CORRECTIONS_PATH, 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=fields)
+        w.writeheader()
+        for row in sorted(corrections,
+                          key=lambda r: (r['sheet'], r['base_key'], r['action'], r['tag'])):
+            w.writerow(row)
+
+    by_action: dict[str, int] = {}
+    for c in corrections:
+        by_action[c['action']] = by_action.get(c['action'], 0) + 1
+    print()
+    print(f"Wrote {CORRECTIONS_PATH.relative_to(PROJECT_ROOT)} ({len(corrections)} rows)")
+    print(f"  removals: {by_action.get('remove', 0)} | "
+          f"additions: {by_action.get('add', 0)} | "
+          f"umbrella drops: {by_action.get('drop_umbrella', 0)}")
 
 
 if __name__ == '__main__':

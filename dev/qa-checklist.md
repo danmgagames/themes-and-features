@@ -156,3 +156,31 @@
 
 ### Validation gate
 - [x] Re-run `python dev/validate_session6a.py` — all 7 checks passed for 185 PDF-sourced JSONs
+
+## Session 6d — Per-market celebrity-name validation in market xlsx
+
+### Generator + audit log
+- [x] `python generate_market_xlsx.py` runs; console prints "Celebrity pool: 46 tags"
+- [x] `output/celebrity_corrections.csv` written with 60 rows: 29 removals + 2 additions + 29 umbrella drops
+- [x] No taxonomy umbrella key (e.g. `Nature & Animals`, `Fantasy & Mythology`) appears in the removed-tags list
+
+### SPAIN spot-checks
+- [ ] "Lejano Oeste Mania Megaways" themes — `Ron Josol` and `Celebrities` both gone (Canada-IP bleed pruned)
+- [ ] 6× Chiquito SPAIN rows (Halloween, Navidad, Western, Fistrogames, Medieval, Condemor) — `Chiquito de la Calzada` and `Celebrities` both gone (strict full-name policy intentionally trims truncated localisations)
+- [ ] "Andy Y Lucas" — `Andy & Lucas` SURVIVES (conjunction normalization `& ↔ y` works)
+- [ ] "Sonia Monroy En El Planeta Halloween" — gets `Sonia Monroy` + `Celebrities` added (swap-in: base_key has no celebrity, SPAIN-localised name introduces her)
+- [ ] "Mario Vaquerizo Salvaje" / "Samantha Fox" / "Pasapalabra" / "Cañita Brava" / etc. — celebrity tag and umbrella both retained
+
+### Other-market spot-checks
+- [ ] PORTUGAL "Velho Oeste Mania Megaways" → `Ron Josol` and umbrella gone
+- [ ] .COM "Jade Goddess" → `Aurah Ruiz` and umbrella gone (Spain-only celebrity)
+- [ ] ITALY "Lo Stregone Megaways" → `Nacho Vidal` and umbrella gone
+- [ ] NETHERLANDS "Milou Tamara Goudmijn Mania Megaways" → `Taya Valkyrie` and umbrella gone
+
+### Audit-log spot-check
+- [ ] Open `output/celebrity_corrections.csv` — sorted (sheet, base_key, action, tag); spot-check 3 `remove` rows against their GameName visually
+
+### No regressions
+- [x] `output/games_enriched.csv` mtime unchanged — consolidator was not re-run
+- [ ] Re-run `python dev/validate_session6a.py` — still passes (classified JSONs untouched)
+- [ ] Per-sheet enrichment Coverage % matches pre-6d (no row drops)
